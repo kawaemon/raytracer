@@ -1,16 +1,20 @@
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
-use sdl2::pixels::Color;
-use sdl2::rect::Point;
+use sdl2::{
+    event::Event,
+    keyboard::Keycode,
+    pixels::{Color, PixelFormatEnum},
+    rect::{Point, Rect},
+    render::Canvas,
+    video::Window,
+};
 
 use std::time::Duration;
+
+const WIDTH: u32 = 256;
+const HEIGHT: u32 = 256;
 
 fn main() -> Result<(), String> {
     let sdl = sdl2::init()?;
     let video = sdl.video()?;
-
-    const WIDTH: u32 = 256;
-    const HEIGHT: u32 = 256;
 
     let window = video
         .window("raytracing", WIDTH, HEIGHT)
@@ -20,20 +24,19 @@ fn main() -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     let mut canvas = window.into_canvas().build().map_err(|e| e.to_string())?;
-
-    canvas.set_draw_color(Color::RGB(255, 0, 0));
-    canvas.clear();
-
-    for x in 0..HEIGHT {
-        for y in 0..WIDTH {
-            canvas.set_draw_color(Color::RGB(x as _, y as _, 0));
-            canvas.draw_point(Point::new(x as _, y as _));
-        }
-    }
-
-    canvas.present();
+    let texture_creator = canvas.texture_creator();
+    let mut texture = texture_creator
+        .create_texture_target(PixelFormatEnum::RGBA8888, WIDTH, HEIGHT)
+        .map_err(|e| e.to_string())?;
 
     let mut event_pump = sdl.event_pump()?;
+    let mut drawer = Drawer::new();
+
+    canvas
+        .with_texture_canvas(&mut texture, |canvas| {
+            drawer.initialize(canvas).unwrap();
+        })
+        .map_err(|e| e.to_string())?;
 
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -47,8 +50,65 @@ fn main() -> Result<(), String> {
             }
         }
 
-        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 30));
+        canvas
+            .with_texture_canvas(&mut texture, |canvas| {
+                drawer.draw(canvas).unwrap();
+            })
+            .map_err(|e| e.to_string())?;
+
+        canvas.set_draw_color(Color::RGB(0, 0, 0));
+        canvas.clear();
+        canvas.copy_ex(
+            &texture,
+            None,
+            Some(Rect::new(0, 0, WIDTH as _, HEIGHT as _)),
+            0.0,
+            Some(Point::new(WIDTH as _, HEIGHT as _)),
+            false,
+            false,
+        )?;
+
+        canvas.present();
+
+        std::thread::sleep(std::time::Duration::from_millis(1000 / 60));
     }
 
     Ok(())
+}
+
+struct Drawer {
+    y: u32,
+}
+
+impl Drawer {
+    fn new() -> Self {
+        Self { y: 0 }
+    }
+
+    fn initialize(&mut self, canvas: &mut Canvas<Window>) -> Result<(), String> {
+        canvas.set_draw_color(Color::RGB(0, 0, 0));
+        canvas.clear();
+
+        Ok(())
+    }
+
+    fn draw(&mut self, canvas: &mut Canvas<Window>) -> Result<(), String> {
+        if HEIGHT <= self.y {
+            return Ok(());
+        }
+
+        for x in 0..WIDTH {
+            let color = calc_pixel_color(x, self.y as _);
+            canvas.set_draw_color(color);
+            canvas.draw_point(Point::new(x as _, self.y as _))?;
+        }
+
+        self.y += 1;
+
+        Ok(())
+    }
+}
+
+fn calc_pixel_color(x: u32, y: u32) -> Color {
+    Color::RGB(x as _, y as _, 0)
 }
