@@ -14,6 +14,7 @@ use std::time::Duration;
 
 const WIDTH: u32 = 256;
 const HEIGHT: u32 = 256;
+const FPS: u64 = 30;
 
 fn main() -> Result<(), String> {
     let sdl = sdl2::init()?;
@@ -73,19 +74,18 @@ fn main() -> Result<(), String> {
 
         canvas.present();
 
-        std::thread::sleep(std::time::Duration::from_millis(1000 / 60));
+        std::thread::sleep(std::time::Duration::from_millis(1000 / FPS));
     }
 
     Ok(())
 }
 
 struct Drawer {
-    // 視点の座標
     eye: Vector3<f64>,
-    // 球の中心座標
     sphere_center: Vector3<f64>,
-    // 球の半径
     sphere_radius: f64,
+    light_pos: Vector3<f64>,
+    light_power: f64,
     y: u32,
 }
 
@@ -103,13 +103,19 @@ impl Drawer {
                 z: 0.0,
             },
             sphere_radius: 1.0,
+            light_pos: Vector3 {
+                x: 10.0,
+                y: 10.0,
+                z: 10.0,
+            },
+            light_power: 4000.0,
             y: 0,
         }
     }
 
     fn initialize(&mut self, canvas: &mut Canvas<Window>) -> Result<(), String> {
-        canvas.set_draw_color(Color::RGB(0, 0, 0));
-        canvas.clear();
+        // canvas.set_draw_color(Color::RGB(0, 0, 0));
+        // canvas.clear();
         Ok(())
     }
 
@@ -148,14 +154,20 @@ impl Drawer {
 
     fn calc_pixel_color(&self, x: u32, y: u32) -> Color {
         let primary_ray = self.calc_primary_ray(x, y);
-
-        if self.intersect_ray_sphere(
+        let t = self.intersect_ray_sphere(
             self.eye,
             primary_ray,
             self.sphere_center,
             self.sphere_radius,
-        ) {
-            Color::RGB(255, 255, 255)
+        );
+
+        if let Some(t) = t {
+            let p = self.eye + primary_ray.scale(t);
+            let n = (p - self.sphere_center).normalize();
+            let brightness = self.diffuse_lighting(p, n, self.light_pos, self.light_power);
+
+            let i = ((brightness * 255.0).min(255.0)) as u8;
+            Color::RGB(i, i, i)
         } else {
             Color::RGB(0, 0, 0)
         }
@@ -167,12 +179,47 @@ impl Drawer {
         ray_dir: Vector3<f64>,
         sphere_center: Vector3<f64>,
         r: f64,
-    ) -> bool {
+    ) -> Option<f64> {
         let v = ray_origin - sphere_center;
 
         let a = ray_dir.dot(&v);
         let b = v.dot(&v) - self.sphere_radius.powi(2);
 
-        a * a - b >= 0.0
+        let d = a * a - b;
+
+        if d >= 0.0 {
+            let s = d.sqrt();
+            let mut t = -a - s;
+
+            if t <= 0.0 {
+                t = -a + s;
+            }
+
+            if 0.0 < t {
+                return Some(t);
+            }
+        }
+
+        None
+    }
+
+    fn diffuse_lighting(
+        &self,
+        p: Vector3<f64>,
+        n: Vector3<f64>,
+        light_pos: Vector3<f64>,
+        light_power: f64,
+    ) -> f64 {
+        let v = light_pos - p;
+        let l = v.normalize();
+
+        let dot = n.dot(&l);
+
+        if dot > 0.0 {
+            let r = v.len();
+            light_power * dot / (4.0 * std::f64::consts::PI * r * r)
+        } else {
+            0.0
+        }
     }
 }
