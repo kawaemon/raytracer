@@ -1,4 +1,6 @@
+mod spectrum;
 mod vector;
+use spectrum::Spectrum;
 use vector::Vector3;
 
 use sdl2::{
@@ -10,11 +12,12 @@ use sdl2::{
     video::Window,
 };
 
-use std::time::Duration;
+use std::time::Instant;
 
 const WIDTH: u32 = 256;
 const HEIGHT: u32 = 256;
 const FPS: u64 = 30;
+const WARNING_THRESHOLD_MS: u128 = 100;
 
 fn main() -> Result<(), String> {
     let sdl = sdl2::init()?;
@@ -36,11 +39,13 @@ fn main() -> Result<(), String> {
     let mut event_pump = sdl.event_pump()?;
     let mut drawer = Drawer::new();
 
+    let mut time = Instant::now();
     canvas
         .with_texture_canvas(&mut texture, |canvas| {
             drawer.initialize(canvas).unwrap();
         })
         .map_err(|e| e.to_string())?;
+    println!("initialize took {}ms", time.elapsed().as_millis());
 
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -54,11 +59,16 @@ fn main() -> Result<(), String> {
             }
         }
 
+        time = Instant::now();
         canvas
             .with_texture_canvas(&mut texture, |canvas| {
                 drawer.draw(canvas).unwrap();
             })
             .map_err(|e| e.to_string())?;
+        let elapsed = time.elapsed().as_millis();
+        if WARNING_THRESHOLD_MS <= elapsed {
+            println!("drawing tooks longer than usual: {}ms", elapsed);
+        }
 
         canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.clear();
@@ -85,7 +95,10 @@ struct Drawer {
     sphere_center: Vector3<f64>,
     sphere_radius: f64,
     light_pos: Vector3<f64>,
-    light_power: f64,
+    light_power: Spectrum,
+    light2_pos: Vector3<f64>,
+    light2_power: Spectrum,
+    diffuse_color: Spectrum,
     y: u32,
 }
 
@@ -108,29 +121,45 @@ impl Drawer {
                 y: 10.0,
                 z: 10.0,
             },
-            light_power: 4000.0,
+            light_power: Spectrum {
+                r: 4000.0,
+                g: 4000.0,
+                b: 4000.0,
+            },
+            light2_pos: Vector3 {
+                x: -10.0,
+                y: -10.0,
+                z: -10.0,
+            },
+            light2_power: Spectrum {
+                r: 4000.0,
+                g: 4000.0,
+                b: 4000.0,
+            },
+            diffuse_color: Spectrum {
+                r: 1.0,
+                g: 0.5,
+                b: 0.25,
+            },
             y: 0,
         }
     }
 
     fn initialize(&mut self, canvas: &mut Canvas<Window>) -> Result<(), String> {
-        // canvas.set_draw_color(Color::RGB(0, 0, 0));
-        // canvas.clear();
+        canvas.set_draw_color(Color::RGB(0, 0, 0));
+        canvas.clear();
+
+        for x in 0..WIDTH {
+            for y in 0..HEIGHT {
+                canvas.set_draw_color(self.calc_pixel_color(x, y));
+                canvas.draw_point(Point::new(x as _, y as _));
+            }
+        }
+
         Ok(())
     }
 
-    fn draw(&mut self, canvas: &mut Canvas<Window>) -> Result<(), String> {
-        if self.y >= HEIGHT {
-            return Ok(());
-        }
-
-        for x in 0..WIDTH {
-            canvas.set_draw_color(self.calc_pixel_color(x, self.y));
-            canvas.draw_point(Point::new(x as _, self.y as _));
-        }
-
-        self.y += 1;
-
+    fn draw(&mut self, _canvas: &mut Canvas<Window>) -> Result<(), String> {
         Ok(())
     }
 
@@ -164,10 +193,16 @@ impl Drawer {
         if let Some(t) = t {
             let p = self.eye + primary_ray.scale(t);
             let n = (p - self.sphere_center).normalize();
-            let brightness = self.diffuse_lighting(p, n, self.light_pos, self.light_power);
 
-            let i = ((brightness * 255.0).min(255.0)) as u8;
-            Color::RGB(i, i, i)
+            (self.diffuse_lighting(p, n, self.diffuse_color, self.light_pos, self.light_power)
+                + self.diffuse_lighting(
+                    p,
+                    n,
+                    self.diffuse_color,
+                    self.light2_pos,
+                    self.light2_power,
+                ))
+            .to_color()
         } else {
             Color::RGB(0, 0, 0)
         }
@@ -178,7 +213,7 @@ impl Drawer {
         ray_origin: Vector3<f64>,
         ray_dir: Vector3<f64>,
         sphere_center: Vector3<f64>,
-        r: f64,
+        _r: f64,
     ) -> Option<f64> {
         let v = ray_origin - sphere_center;
 
@@ -207,9 +242,10 @@ impl Drawer {
         &self,
         p: Vector3<f64>,
         n: Vector3<f64>,
+        diffuse_color: Spectrum,
         light_pos: Vector3<f64>,
-        light_power: f64,
-    ) -> f64 {
+        light_power: Spectrum,
+    ) -> Spectrum {
         let v = light_pos - p;
         let l = v.normalize();
 
@@ -217,9 +253,11 @@ impl Drawer {
 
         if dot > 0.0 {
             let r = v.len();
-            light_power * dot / (4.0 * std::f64::consts::PI * r * r)
+            let factor = dot / (4.0 * std::f64::consts::PI * r * r);
+
+            light_power.scale(factor) * diffuse_color
         } else {
-            0.0
+            spectrum::BLACK
         }
     }
 }

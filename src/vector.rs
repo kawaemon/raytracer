@@ -70,6 +70,6 @@ impl<T: Float> Vector3<T> {
     }
 }
 
-fn square<T: NumOps + Copy>(n: T) -> T {
-    n * n
+fn square<T: NumOps + Clone>(n: T) -> T {
+    n.clone() * n.clone()
 }
