@@ -1,6 +1,20 @@
+mod intersect;
+mod light;
+mod material;
+mod plane;
+mod ray;
+mod scene;
 mod spectrum;
+mod sphere;
 mod vector;
+
+use light::Light;
+use material::Material;
+use plane::Plane;
+use ray::Ray;
+use scene::Scene;
 use spectrum::Spectrum;
+use sphere::Sphere;
 use vector::Vector3;
 
 use sdl2::{
@@ -91,58 +105,134 @@ fn main() -> Result<(), String> {
 }
 
 struct Drawer {
+    scene: Scene,
     eye: Vector3<f64>,
-    sphere_center: Vector3<f64>,
-    sphere_radius: f64,
-    light_pos: Vector3<f64>,
-    light_power: Spectrum,
-    light2_pos: Vector3<f64>,
-    light2_power: Spectrum,
-    diffuse_color: Spectrum,
-    y: u32,
 }
 
 impl Drawer {
     fn new() -> Self {
-        Self {
-            eye: Vector3 {
-                x: 0.0,
+        let mut scene = Scene::new();
+
+        scene.add_object(Sphere {
+            center: Vector3 {
+                x: -2.0,
                 y: 0.0,
-                z: 5.0,
+                z: 0.0,
             },
-            sphere_center: Vector3 {
+            radius: 0.8,
+            material: Material {
+                diffuse: Spectrum {
+                    r: 0.9,
+                    g: 0.1,
+                    b: 0.5,
+                },
+            },
+        });
+
+        scene.add_object(Sphere {
+            center: Vector3 {
                 x: 0.0,
                 y: 0.0,
                 z: 0.0,
             },
-            sphere_radius: 1.0,
-            light_pos: Vector3 {
-                x: 10.0,
-                y: 10.0,
-                z: 10.0,
+            radius: 0.8,
+            material: Material {
+                diffuse: Spectrum {
+                    r: 0.1,
+                    g: 0.9,
+                    b: 0.5,
+                },
             },
-            light_power: Spectrum {
-                r: 4000.0,
-                g: 4000.0,
-                b: 4000.0,
+        });
+
+        scene.add_object(Sphere {
+            center: Vector3 {
+                x: 2.0,
+                y: 0.0,
+                z: 0.0,
             },
-            light2_pos: Vector3 {
-                x: -10.0,
-                y: -10.0,
-                z: -10.0,
+            radius: 0.8,
+            material: Material {
+                diffuse: Spectrum {
+                    r: 0.1,
+                    g: 0.9,
+                    b: 0.5,
+                },
             },
-            light2_power: Spectrum {
-                r: 4000.0,
-                g: 4000.0,
-                b: 4000.0,
+        });
+
+        scene.add_object(Plane::new(
+            Vector3 {
+                x: 0.0,
+                y: -0.8,
+                z: 0.0,
             },
-            diffuse_color: Spectrum {
-                r: 1.0,
-                g: 0.5,
-                b: 0.25,
+            Vector3 {
+                x: 0.0,
+                y: 1.0,
+                z: 0.0,
             },
-            y: 0,
+            Material {
+                diffuse: Spectrum {
+                    r: 0.8,
+                    g: 0.8,
+                    b: 0.8,
+                },
+            },
+        ));
+
+        scene.add_light(Light {
+            pos: Vector3 {
+                x: 100.0,
+                y: 100.0,
+                z: 100.0,
+            },
+            power: Spectrum {
+                r: 400_000.0,
+                g: 100_000.0,
+                b: 400_000.0,
+            },
+        });
+
+        scene.add_light(Light {
+            pos: Vector3 {
+                x: -100.0,
+                y: 100.0,
+                z: 100.0,
+            },
+            power: Spectrum {
+                r: 100_000.0,
+                g: 400_000.0,
+                b: 100_000.0,
+            },
+        });
+
+        Self {
+            scene,
+            eye: Vector3 {
+                x: 0.0,
+                y: 0.0,
+                z: 7.0,
+            },
         }
+    }
+
+    fn calc_primary_ray(&self, x: f64, y: f64) -> Ray {
+        let (width, height) = (WIDTH as f64, HEIGHT as f64);
+        let image_plane = height;
+
+        let dx = x + 0.5 - width / 2.0;
+        let dy = -(y + 0.5 - height / 2.0);
+        let dz = -image_plane;
+
+        Ray::new(
+            self.eye,
+            Vector3 {
+                x: dx,
+                y: dy,
+                z: dz,
+            },
+        )
     }
 
     fn initialize(&mut self, canvas: &mut Canvas<Window>) -> Result<(), String> {
@@ -151,7 +241,11 @@ impl Drawer {
 
         for x in 0..WIDTH {
             for y in 0..HEIGHT {
-                canvas.set_draw_color(self.calc_pixel_color(x, y));
+                canvas.set_draw_color(
+                    self.scene
+                        .trace(self.calc_primary_ray(x as _, y as _))
+                        .to_color(),
+                );
                 canvas.draw_point(Point::new(x as _, y as _));
             }
         }
@@ -161,103 +255,5 @@ impl Drawer {
 
     fn draw(&mut self, _canvas: &mut Canvas<Window>) -> Result<(), String> {
         Ok(())
-    }
-
-    fn calc_primary_ray(&self, x: u32, y: u32) -> Vector3<f64> {
-        let distance_to_image_plane: i64 = HEIGHT as _;
-
-        let (x, y) = (x as f64, y as f64);
-        let (width, height) = (WIDTH as f64, HEIGHT as f64);
-
-        let dx: f64 = x + 0.5 - width / 2.0;
-        let dy: f64 = -(y + 0.5 - height / 2.0);
-        let dz: f64 = (-distance_to_image_plane) as f64;
-
-        Vector3 {
-            x: dx,
-            y: dy,
-            z: dz,
-        }
-        .normalize()
-    }
-
-    fn calc_pixel_color(&self, x: u32, y: u32) -> Color {
-        let primary_ray = self.calc_primary_ray(x, y);
-        let t = self.intersect_ray_sphere(
-            self.eye,
-            primary_ray,
-            self.sphere_center,
-            self.sphere_radius,
-        );
-
-        if let Some(t) = t {
-            let p = self.eye + primary_ray.scale(t);
-            let n = (p - self.sphere_center).normalize();
-
-            (self.diffuse_lighting(p, n, self.diffuse_color, self.light_pos, self.light_power)
-                + self.diffuse_lighting(
-                    p,
-                    n,
-                    self.diffuse_color,
-                    self.light2_pos,
-                    self.light2_power,
-                ))
-            .to_color()
-        } else {
-            Color::RGB(0, 0, 0)
-        }
-    }
-
-    fn intersect_ray_sphere(
-        &self,
-        ray_origin: Vector3<f64>,
-        ray_dir: Vector3<f64>,
-        sphere_center: Vector3<f64>,
-        _r: f64,
-    ) -> Option<f64> {
-        let v = ray_origin - sphere_center;
-
-        let a = ray_dir.dot(&v);
-        let b = v.dot(&v) - self.sphere_radius.powi(2);
-
-        let d = a * a - b;
-
-        if d >= 0.0 {
-            let s = d.sqrt();
-            let mut t = -a - s;
-
-            if t <= 0.0 {
-                t = -a + s;
-            }
-
-            if 0.0 < t {
-                return Some(t);
-            }
-        }
-
-        None
-    }
-
-    fn diffuse_lighting(
-        &self,
-        p: Vector3<f64>,
-        n: Vector3<f64>,
-        diffuse_color: Spectrum,
-        light_pos: Vector3<f64>,
-        light_power: Spectrum,
-    ) -> Spectrum {
-        let v = light_pos - p;
-        let l = v.normalize();
-
-        let dot = n.dot(&l);
-
-        if dot > 0.0 {
-            let r = v.len();
-            let factor = dot / (4.0 * std::f64::consts::PI * r * r);
-
-            light_power.scale(factor) * diffuse_color
-        } else {
-            spectrum::BLACK
-        }
     }
 }
