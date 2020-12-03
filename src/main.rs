@@ -155,8 +155,8 @@ impl Drawer {
             material: Material {
                 diffuse: Spectrum {
                     r: 0.1,
-                    g: 0.9,
-                    b: 0.5,
+                    g: 0.5,
+                    b: 0.9,
                 },
             },
         });
