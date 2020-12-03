@@ -45,6 +45,16 @@ impl Scene {
             .min_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap())
     }
 
+    fn visible(&self, org: Vector3<f64>, target: Vector3<f64>) -> bool {
+        let v = (target - org).normalize();
+        let shadow_ray = Ray::new(org, v);
+
+        self.objects
+            .iter()
+            .flat_map(|x| x.intersect(&shadow_ray))
+            .all(|x| x.distance >= v.len())
+    }
+
     fn diffuse_lighting(
         &self,
         point: Vector3<f64>,
@@ -57,13 +67,13 @@ impl Scene {
         let l = v.normalize();
         let dot = normal.dot(&l);
 
-        if dot <= 0.0 {
-            return spectrum::BLACK;
+        if dot > 0.0 && self.visible(point, light_pos) {
+            let r = v.len();
+            let factor = dot / (4.0 * std::f64::consts::PI * r * r);
+            return light_power.scale(factor) * diffuse_color;
         }
 
-        let r = v.len();
-        let factor = dot / (4.0 * std::f64::consts::PI * r * r);
-        light_power.scale(factor) * diffuse_color
+        spectrum::BLACK
     }
 
     fn lighting(&self, point: Vector3<f64>, normal: Vector3<f64>, material: Material) -> Spectrum {
