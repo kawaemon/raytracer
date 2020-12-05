@@ -27,12 +27,28 @@ impl Scene {
     }
 
     pub fn trace(&self, ray: Ray) -> Spectrum {
-        let intersection = self.find_nearest_intersection(&ray);
+        let intersection = match self.find_nearest_intersection(&ray) {
+            Some(i) => i,
+            None => return spectrum::BLACK,
+        };
 
-        match intersection {
-            None => spectrum::BLACK,
-            Some(i) => self.lighting(i.point, i.normal, i.material),
+        let material = intersection.material;
+        let mut light = spectrum::BLACK;
+
+        if 0.0 < material.reflective {
+            let reflection_ray = ray.dir.reflect(&intersection.normal);
+            let color = self.trace(Ray::new(intersection.point, reflection_ray));
+            light += color.scale(material.reflective) * material.diffuse;
         }
+
+        // 拡散反射成分
+        let kd = 1.0 - material.reflective;
+        if 0.0 < kd {
+            let color = self.lighting(intersection.point, intersection.normal, material);
+            light += color.scale(kd);
+        }
+
+        return light;
     }
 
     fn find_nearest_intersection(&self, ray: &Ray) -> Option<Intersection> {

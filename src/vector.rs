@@ -1,7 +1,7 @@
-use num_traits::{Float, NumOps};
+use num_traits::{Float, NumOps, One};
 use std::clone::Clone;
 use std::marker::Copy;
-use std::ops::{Add, Sub};
+use std::ops::{Add, AddAssign, Sub};
 
 pub struct Vector3<T: NumOps> {
     pub x: T,
@@ -32,6 +32,14 @@ impl<T: NumOps> Add for Vector3<T> {
     }
 }
 
+impl<T: NumOps + AddAssign> AddAssign for Vector3<T> {
+    fn add_assign(&mut self, other: Self) {
+        self.x += other.x;
+        self.y += other.y;
+        self.z += other.z;
+    }
+}
+
 impl<T: NumOps> Sub for Vector3<T> {
     type Output = Vector3<T>;
 
@@ -57,6 +65,12 @@ impl<T: NumOps + Clone> Vector3<T> {
         self.x.clone() * other.x.clone()
             + self.y.clone() * other.y.clone()
             + self.z.clone() * other.z.clone()
+    }
+}
+
+impl<T: NumOps + Clone + One> Vector3<T> {
+    pub fn reflect(&self, normal: &Self) -> Self {
+        self.clone() - normal.scale((T::one() + T::one()) * self.dot(&normal))
     }
 }
 

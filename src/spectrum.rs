@@ -1,5 +1,5 @@
 use sdl2::pixels::Color;
-use std::ops::{Add, Mul};
+use std::ops::{Add, Mul, AddAssign};
 
 #[derive(Debug, Clone, Copy)]
 pub struct Spectrum {
@@ -8,7 +8,7 @@ pub struct Spectrum {
     pub b: f64,
 }
 
-pub static BLACK: Spectrum = Spectrum {
+pub const BLACK: Spectrum = Spectrum {
     r: 0.0,
     g: 0.0,
     b: 0.0,
@@ -42,6 +42,14 @@ impl Add for Spectrum {
             g: self.g + other.g,
             b: self.b + other.b,
         }
+    }
+}
+
+impl AddAssign for Spectrum {
+    fn add_assign(&mut self, other: Self) {
+        self.r = self.r + other.r;
+        self.g = self.g + other.g;
+        self.b = self.b + other.b;
     }
 }
 

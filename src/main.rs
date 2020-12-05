@@ -28,9 +28,9 @@ use sdl2::{
 
 use std::time::Instant;
 
-const WIDTH: u32 = 256;
-const HEIGHT: u32 = 256;
-const FPS: u64 = 30;
+const WIDTH: u32 = 512;
+const HEIGHT: u32 = 512;
+const FPS: u64 = 1;
 const WARNING_THRESHOLD_MS: u128 = 100;
 
 fn main() -> Result<(), String> {
@@ -121,6 +121,7 @@ impl Drawer {
             },
             radius: 0.8,
             material: Material {
+                reflective: 0.0,
                 diffuse: Spectrum {
                     r: 0.9,
                     g: 0.1,
@@ -137,6 +138,7 @@ impl Drawer {
             },
             radius: 0.8,
             material: Material {
+                reflective: 0.4,
                 diffuse: Spectrum {
                     r: 0.1,
                     g: 0.9,
@@ -153,6 +155,7 @@ impl Drawer {
             },
             radius: 0.8,
             material: Material {
+                reflective: 0.0,
                 diffuse: Spectrum {
                     r: 0.1,
                     g: 0.5,
@@ -173,6 +176,7 @@ impl Drawer {
                 z: 0.0,
             },
             Material {
+                reflective: 0.0,
                 diffuse: Spectrum {
                     r: 0.8,
                     g: 0.8,
