@@ -5,6 +5,8 @@ use crate::ray::Ray;
 use crate::spectrum::{self, Spectrum};
 use crate::vector::Vector3;
 
+const RECURSION_LIMIT: u32 = 3000;
+
 pub struct Scene {
     objects: Vec<Box<dyn Intersectable>>,
     lights: Vec<Light>,
@@ -26,7 +28,11 @@ impl Scene {
         self.lights.push(l);
     }
 
-    pub fn trace(&self, ray: Ray) -> Spectrum {
+    pub fn trace(&self, ray: Ray, depth: u32) -> Spectrum {
+        if RECURSION_LIMIT < depth {
+            return spectrum::BLACK;
+        }
+
         let intersection = match self.find_nearest_intersection(&ray) {
             Some(i) => i,
             None => return spectrum::BLACK,
@@ -37,7 +43,7 @@ impl Scene {
 
         if 0.0 < material.reflective {
             let reflection_ray = ray.dir.reflect(&intersection.normal);
-            let color = self.trace(Ray::new(intersection.point, reflection_ray));
+            let color = self.trace(Ray::new(intersection.point, reflection_ray), depth + 1);
             light += color.scale(material.reflective) * material.diffuse;
         }
 

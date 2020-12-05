@@ -247,10 +247,10 @@ impl Drawer {
             for y in 0..HEIGHT {
                 canvas.set_draw_color(
                     self.scene
-                        .trace(self.calc_primary_ray(x as _, y as _))
+                        .trace(self.calc_primary_ray(x as _, y as _), 0)
                         .to_color(),
                 );
-                canvas.draw_point(Point::new(x as _, y as _));
+                canvas.draw_point(Point::new(x as _, y as _))?;
             }
         }
 
