@@ -1,3 +1,4 @@
+mod checked_obj;
 mod intersect;
 mod light;
 mod material;
@@ -9,6 +10,7 @@ mod sphere;
 mod vector;
 
 use light::Light;
+use checked_obj::CheckedObject;
 use material::Material;
 use plane::Plane;
 use ray::Ray;
@@ -138,7 +140,7 @@ impl Drawer {
             },
             radius: 0.8,
             material: Material {
-                reflective: 0.4,
+                reflective: 0.6,
                 diffuse: Spectrum {
                     r: 0.1,
                     g: 0.9,
@@ -164,26 +166,37 @@ impl Drawer {
             },
         });
 
-        scene.add_object(Plane::new(
-            Vector3 {
-                x: 0.0,
-                y: -0.8,
-                z: 0.0,
-            },
-            Vector3 {
-                x: 0.0,
-                y: 1.0,
-                z: 0.0,
-            },
-            Material {
+        scene.add_object(CheckedObject{
+            object: Plane::new(
+                Vector3 {
+                    x: 0.0,
+                    y: -0.8,
+                    z: 0.0,
+                },
+                Vector3 {
+                    x: 0.0,
+                    y: 1.0,
+                    z: 0.0,
+                },
+                Material {
+                    reflective: 0.0,
+                    diffuse: Spectrum {
+                        r: 0.5,
+                        g: 0.5,
+                        b: 0.5,
+                    },
+                },
+            ),
+            grid_width: 1.0,
+            alt_material: Material {
                 reflective: 0.0,
                 diffuse: Spectrum {
-                    r: 0.8,
-                    g: 0.8,
-                    b: 0.8,
-                },
-            },
-        ));
+                    r: 0.2,
+                    g: 0.2,
+                    b: 0.2,
+                }
+            }
+        });
 
         scene.add_light(Light {
             pos: Vector3 {
