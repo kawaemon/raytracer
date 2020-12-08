@@ -9,8 +9,8 @@ mod spectrum;
 mod sphere;
 mod vector;
 
-use light::Light;
 use checked_obj::CheckedObject;
+use light::Light;
 use material::Material;
 use plane::Plane;
 use ray::Ray;
@@ -123,12 +123,14 @@ impl Drawer {
             },
             radius: 0.8,
             material: Material {
-                reflective: 0.0,
                 diffuse: Spectrum {
                     r: 0.9,
                     g: 0.1,
                     b: 0.5,
                 },
+                refractive: 0.9,
+                refractive_index: 1.5,
+                ..Material::default()
             },
         });
 
@@ -146,6 +148,7 @@ impl Drawer {
                     g: 0.9,
                     b: 0.5,
                 },
+                ..Material::default()
             },
         });
 
@@ -163,10 +166,11 @@ impl Drawer {
                     g: 0.5,
                     b: 0.9,
                 },
+                ..Material::default()
             },
         });
 
-        scene.add_object(CheckedObject{
+        scene.add_object(CheckedObject {
             object: Plane::new(
                 Vector3 {
                     x: 0.0,
@@ -185,6 +189,7 @@ impl Drawer {
                         g: 0.5,
                         b: 0.5,
                     },
+                    ..Material::default()
                 },
             ),
             grid_width: 1.0,
@@ -194,8 +199,9 @@ impl Drawer {
                     r: 0.2,
                     g: 0.2,
                     b: 0.2,
-                }
-            }
+                },
+                ..Material::default()
+            },
         });
 
         scene.add_light(Light {

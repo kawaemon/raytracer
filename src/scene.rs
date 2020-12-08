@@ -6,6 +6,7 @@ use crate::spectrum::{self, Spectrum};
 use crate::vector::Vector3;
 
 const RECURSION_LIMIT: u32 = 3000;
+const VACUUM_REFRACTIVE_INDEX: f64 = 1.0;
 
 pub struct Scene {
     objects: Vec<Box<dyn Intersectable>>,
@@ -30,6 +31,7 @@ impl Scene {
 
     pub fn trace(&self, ray: Ray, depth: u32) -> Spectrum {
         if RECURSION_LIMIT < depth {
+            println!("reached to recursion limit");
             return spectrum::BLACK;
         }
 
@@ -41,20 +43,41 @@ impl Scene {
         let material = intersection.material;
         let mut light = spectrum::BLACK;
 
-        if 0.0 < material.reflective {
-            let reflection_ray = ray.dir.reflect(&intersection.normal);
-            let color = self.trace(Ray::new(intersection.point, reflection_ray), depth + 1);
-            light += color.scale(material.reflective) * material.diffuse;
+        if intersection.normal.dot(&ray.dir) < 0.0 {
+            // 鏡面反射成分
+            if 0.0 < material.reflective {
+                let reflection_ray = ray.dir.reflect(&intersection.normal);
+                let color = self.trace(Ray::new(intersection.point, reflection_ray), depth + 1);
+                light += color.scale(material.reflective) * material.diffuse;
+            }
+
+            // 屈折成分
+            if 0.0 < material.refractive {
+                let refraction = ray.dir.refract(
+                    intersection.normal,
+                    VACUUM_REFRACTIVE_INDEX / material.refractive_index,
+                );
+
+                let color = self.trace(Ray::new(intersection.point, refraction), depth + 1);
+                light += color.scale(material.refractive) * material.diffuse;
+            }
+
+            // 拡散反射成分
+            let kd = 1.0 - material.reflective;
+            if 0.0 < kd {
+                let color = self.lighting(intersection.point, intersection.normal, material);
+                light += color.scale(kd);
+            }
+        } else {
+            let refract = ray.dir.refract(
+                -intersection.normal,
+                material.refractive_index / VACUUM_REFRACTIVE_INDEX,
+            );
+
+            light = self.trace(Ray::new(intersection.point, refract), depth + 1);
         }
 
-        // 拡散反射成分
-        let kd = 1.0 - material.reflective;
-        if 0.0 < kd {
-            let color = self.lighting(intersection.point, intersection.normal, material);
-            light += color.scale(kd);
-        }
-
-        return light;
+        light
     }
 
     fn find_nearest_intersection(&self, ray: &Ray) -> Option<Intersection> {

@@ -1,7 +1,7 @@
-use num_traits::{Float, NumOps, One};
+use num_traits::{Float, NumOps, One, Signed};
 use std::clone::Clone;
 use std::marker::Copy;
-use std::ops::{Add, AddAssign, Sub};
+use std::ops::{Add, AddAssign, Neg, Sub};
 
 pub struct Vector3<T: NumOps> {
     pub x: T,
@@ -52,6 +52,18 @@ impl<T: NumOps> Sub for Vector3<T> {
     }
 }
 
+impl<T: NumOps + Signed> Neg for Vector3<T> {
+    type Output = Vector3<T>;
+
+    fn neg(self) -> Self::Output {
+        Self {
+            x: -self.x,
+            y: -self.y,
+            z: -self.z,
+        }
+    }
+}
+
 impl<T: NumOps + Clone> Vector3<T> {
     pub fn scale(&self, n: T) -> Self {
         Self {
@@ -81,6 +93,19 @@ impl<T: Float> Vector3<T> {
 
     pub fn normalize(&self) -> Self {
         self.scale(T::one() / self.len())
+    }
+
+    pub fn refract(&self, normal: Self, eta: T) -> Self {
+        let dot = self.dot(&normal);
+        let d = T::one() - square(eta) * (T::one() - square(dot));
+
+        if T::zero() < d {
+            let a = (*self - normal.scale(dot)).scale(eta);
+            let b = normal.scale(d.sqrt());
+            return a - b;
+        }
+
+        self.reflect(&normal)
     }
 }
 
