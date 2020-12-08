@@ -7,6 +7,7 @@ mod ray;
 mod scene;
 mod spectrum;
 mod sphere;
+mod textured_obj;
 mod vector;
 
 use checked_obj::CheckedObject;
@@ -17,15 +18,18 @@ use ray::Ray;
 use scene::Scene;
 use spectrum::Spectrum;
 use sphere::Sphere;
+use textured_obj::TexturedObj;
 use vector::Vector3;
 
 use sdl2::{
     event::Event,
+    image::{InitFlag as ImageInitFlag, LoadSurface},
     keyboard::Keycode,
-    pixels::{Color, PixelFormatEnum},
+    pixels::{Color, PixelFormat, PixelFormatEnum},
     rect::{Point, Rect},
-    render::Canvas,
-    video::Window,
+    render::{Canvas, TextureCreator},
+    surface::Surface,
+    video::{Window, WindowContext},
 };
 
 use std::time::Instant;
@@ -38,6 +42,7 @@ const WARNING_THRESHOLD_MS: u128 = 100;
 fn main() -> Result<(), String> {
     let sdl = sdl2::init()?;
     let video = sdl.video()?;
+    let _image = sdl2::image::init(ImageInitFlag::PNG)?;
 
     let window = video
         .window("raytracing", WIDTH, HEIGHT)
@@ -53,7 +58,7 @@ fn main() -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     let mut event_pump = sdl.event_pump()?;
-    let mut drawer = Drawer::new();
+    let mut drawer = Drawer::new(&texture_creator);
 
     let mut time = Instant::now();
     canvas
@@ -106,13 +111,13 @@ fn main() -> Result<(), String> {
     Ok(())
 }
 
-struct Drawer {
-    scene: Scene,
+struct Drawer<'obj> {
+    scene: Scene<'obj>,
     eye: Vector3<f64>,
 }
 
-impl Drawer {
-    fn new() -> Self {
+impl Drawer<'_> {
+    fn new(texture_creator: &TextureCreator<WindowContext>) -> Self {
         let mut scene = Scene::new();
 
         scene.add_object(Sphere {
@@ -170,6 +175,26 @@ impl Drawer {
             },
         });
 
+        let floor1_material = Material {
+            reflective: 0.0,
+            diffuse: Spectrum {
+                r: 0.5,
+                g: 0.5,
+                b: 0.5,
+            },
+            ..Material::default()
+        };
+
+        let floor2_material = Material {
+            reflective: 0.0,
+            diffuse: Spectrum {
+                r: 0.2,
+                g: 0.2,
+                b: 0.2,
+            },
+            ..Material::default()
+        };
+
         scene.add_object(CheckedObject {
             object: Plane::new(
                 Vector3 {
@@ -182,25 +207,64 @@ impl Drawer {
                     y: 1.0,
                     z: 0.0,
                 },
-                Material {
-                    reflective: 0.0,
-                    diffuse: Spectrum {
-                        r: 0.5,
-                        g: 0.5,
-                        b: 0.5,
-                    },
-                    ..Material::default()
-                },
+                floor1_material.clone(),
             ),
             grid_width: 1.0,
-            alt_material: Material {
-                reflective: 0.0,
-                diffuse: Spectrum {
-                    r: 0.2,
-                    g: 0.2,
-                    b: 0.2,
+            alt_material: floor2_material,
+        });
+
+        use std::convert::TryInto;
+        let wall_surface =
+            Surface::from_file("./wall.png").expect("failed to load wall texture from ./wall.png");
+        let wall_surface = wall_surface
+            .convert(&PixelFormatEnum::RGB888.try_into().unwrap())
+            .unwrap();
+        let texture_size = (wall_surface.width(), wall_surface.height());
+
+        scene.add_object(TexturedObj {
+            object: Plane::new(
+                Vector3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: -5.0,
                 },
-                ..Material::default()
+                Vector3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 1.0,
+                },
+                floor1_material,
+            ),
+            image: move |x, y| {
+                let base_pos = (y * texture_size.0 + x) as usize;
+
+                let r = wall_surface.without_lock().unwrap()[base_pos];
+                let g = wall_surface.without_lock().unwrap()[base_pos + 1];
+                let b = wall_surface.without_lock().unwrap()[base_pos + 2];
+
+                Spectrum {
+                    r: r as f64 / std::u8::MAX as f64,
+                    g: g as f64 / std::u8::MAX as f64,
+                    b: b as f64 / std::u8::MAX as f64,
+                }
+            },
+            texture_size: 10.0,
+            image_width: texture_size.0,
+            image_height: texture_size.1,
+            origin: Vector3 {
+                x: -5.0,
+                y: -5.0,
+                z: -5.0,
+            },
+            u_direction: Vector3 {
+                x: 1.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            v_direction: Vector3 {
+                x: 0.0,
+                y: 1.0,
+                z: 0.0,
             },
         });
 

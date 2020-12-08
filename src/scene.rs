@@ -8,12 +8,12 @@ use crate::vector::Vector3;
 const RECURSION_LIMIT: u32 = 3000;
 const VACUUM_REFRACTIVE_INDEX: f64 = 1.0;
 
-pub struct Scene {
-    objects: Vec<Box<dyn Intersectable>>,
+pub struct Scene<'obj> {
+    objects: Vec<Box<dyn Intersectable + 'obj>>,
     lights: Vec<Light>,
 }
 
-impl Scene {
+impl<'obj> Scene<'obj> {
     pub fn new() -> Self {
         Self {
             objects: vec![],
@@ -21,7 +21,7 @@ impl Scene {
         }
     }
 
-    pub fn add_object(&mut self, o: impl Intersectable + 'static) {
+    pub fn add_object(&mut self, o: impl Intersectable + 'obj) {
         self.objects.push(Box::new(o));
     }
 
