@@ -1,5 +1,5 @@
 use sdl2::pixels::Color;
-use std::ops::{Add, Mul, AddAssign};
+use std::ops::{Add, AddAssign, Mul};
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Spectrum {

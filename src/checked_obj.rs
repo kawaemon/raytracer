@@ -19,7 +19,7 @@ impl<T: Intersectable> Intersectable for CheckedObject<T> {
                 + (intersection.point.z / self.grid_width).round();
 
             if i % 2.0 == 0.0 {
-               intersection.material = self.alt_material.clone()
+                intersection.material = self.alt_material.clone()
             }
 
             intersection

@@ -8,4 +8,5 @@ edition = "2018"
 
 [dependencies]
 num-traits = "0.2.14"
-sdl2 = "0.34.3"
+png = "0.16.7"
+sdl2 = { version = "0.34.3", features = ["image"] }

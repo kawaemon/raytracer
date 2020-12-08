@@ -23,15 +23,14 @@ use vector::Vector3;
 
 use sdl2::{
     event::Event,
-    image::{InitFlag as ImageInitFlag, LoadSurface},
     keyboard::Keycode,
-    pixels::{Color, PixelFormat, PixelFormatEnum},
+    pixels::{Color, PixelFormatEnum},
     rect::{Point, Rect},
-    render::{Canvas, TextureCreator},
-    surface::Surface,
-    video::{Window, WindowContext},
+    render::Canvas,
+    video::Window,
 };
 
+use std::fs::File;
 use std::time::Instant;
 
 const WIDTH: u32 = 512;
@@ -42,7 +41,6 @@ const WARNING_THRESHOLD_MS: u128 = 100;
 fn main() -> Result<(), String> {
     let sdl = sdl2::init()?;
     let video = sdl.video()?;
-    let _image = sdl2::image::init(ImageInitFlag::PNG)?;
 
     let window = video
         .window("raytracing", WIDTH, HEIGHT)
@@ -58,7 +56,7 @@ fn main() -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     let mut event_pump = sdl.event_pump()?;
-    let mut drawer = Drawer::new(&texture_creator);
+    let mut drawer = Drawer::new();
 
     let mut time = Instant::now();
     canvas
@@ -117,7 +115,7 @@ struct Drawer<'obj> {
 }
 
 impl Drawer<'_> {
-    fn new(texture_creator: &TextureCreator<WindowContext>) -> Self {
+    fn new() -> Self {
         let mut scene = Scene::new();
 
         scene.add_object(Sphere {
@@ -213,13 +211,11 @@ impl Drawer<'_> {
             alt_material: floor2_material,
         });
 
-        use std::convert::TryInto;
-        let wall_surface =
-            Surface::from_file("./wall.png").expect("failed to load wall texture from ./wall.png");
-        let wall_surface = wall_surface
-            .convert(&PixelFormatEnum::RGB888.try_into().unwrap())
-            .unwrap();
-        let texture_size = (wall_surface.width(), wall_surface.height());
+        let decoder = png::Decoder::new(File::open("./wall.png").unwrap());
+        let (info, mut reader) = decoder.read_info().unwrap();
+        let mut buffer = vec![0; info.buffer_size()];
+        reader.next_frame(&mut buffer).unwrap();
+        let (width, height) = (info.width, info.height);
 
         scene.add_object(TexturedObj {
             object: Plane::new(
@@ -236,11 +232,11 @@ impl Drawer<'_> {
                 floor1_material,
             ),
             image: move |x, y| {
-                let base_pos = (y * texture_size.0 + x) as usize;
+                let base_pos = ((y * width + x) * 4) as usize;
 
-                let r = wall_surface.without_lock().unwrap()[base_pos];
-                let g = wall_surface.without_lock().unwrap()[base_pos + 1];
-                let b = wall_surface.without_lock().unwrap()[base_pos + 2];
+                let r = buffer[base_pos];
+                let g = buffer[base_pos + 1];
+                let b = buffer[base_pos + 2];
 
                 Spectrum {
                     r: r as f64 / std::u8::MAX as f64,
@@ -249,8 +245,8 @@ impl Drawer<'_> {
                 }
             },
             texture_size: 10.0,
-            image_width: texture_size.0,
-            image_height: texture_size.1,
+            image_width: width,
+            image_height: height,
             origin: Vector3 {
                 x: -5.0,
                 y: -5.0,
