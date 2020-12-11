@@ -120,16 +120,16 @@ impl Drawer<'_> {
 
         scene.add_object(Sphere {
             center: Vector3 {
-                x: -2.0,
+                x: 0.0,
                 y: 0.0,
                 z: 0.0,
             },
-            radius: 0.8,
+            radius: 1.0,
             material: Material {
                 diffuse: Spectrum {
-                    r: 0.9,
-                    g: 0.1,
-                    b: 0.5,
+                    r: 0.1,
+                    g: 0.5,
+                    b: 0.9,
                 },
                 refractive: 0.9,
                 refractive_index: 1.5,
@@ -137,44 +137,7 @@ impl Drawer<'_> {
             },
         });
 
-        scene.add_object(Sphere {
-            center: Vector3 {
-                x: 0.0,
-                y: 0.0,
-                z: 0.0,
-            },
-            radius: 0.8,
-            material: Material {
-                reflective: 0.6,
-                diffuse: Spectrum {
-                    r: 0.1,
-                    g: 0.9,
-                    b: 0.5,
-                },
-                ..Material::default()
-            },
-        });
-
-        scene.add_object(Sphere {
-            center: Vector3 {
-                x: 2.0,
-                y: 0.0,
-                z: 0.0,
-            },
-            radius: 0.8,
-            material: Material {
-                reflective: 0.0,
-                diffuse: Spectrum {
-                    r: 0.1,
-                    g: 0.5,
-                    b: 0.9,
-                },
-                ..Material::default()
-            },
-        });
-
         let floor1_material = Material {
-            reflective: 0.0,
             diffuse: Spectrum {
                 r: 0.5,
                 g: 0.5,
@@ -184,7 +147,6 @@ impl Drawer<'_> {
         };
 
         let floor2_material = Material {
-            reflective: 0.0,
             diffuse: Spectrum {
                 r: 0.2,
                 g: 0.2,
@@ -197,7 +159,7 @@ impl Drawer<'_> {
             object: Plane::new(
                 Vector3 {
                     x: 0.0,
-                    y: -0.8,
+                    y: -1.0,
                     z: 0.0,
                 },
                 Vector3 {
@@ -208,7 +170,7 @@ impl Drawer<'_> {
                 floor1_material.clone(),
             ),
             grid_width: 1.0,
-            alt_material: floor2_material,
+            alt_material: floor2_material.clone()
         });
 
         let decoder = png::Decoder::new(File::open("./wall.png").unwrap());
@@ -271,22 +233,9 @@ impl Drawer<'_> {
                 z: 100.0,
             },
             power: Spectrum {
-                r: 400_000.0,
-                g: 100_000.0,
-                b: 400_000.0,
-            },
-        });
-
-        scene.add_light(Light {
-            pos: Vector3 {
-                x: -100.0,
-                y: 100.0,
-                z: 100.0,
-            },
-            power: Spectrum {
-                r: 100_000.0,
-                g: 400_000.0,
-                b: 100_000.0,
+                r: 800_000.0,
+                g: 800_000.0,
+                b: 800_000.0,
             },
         });
 
@@ -295,7 +244,7 @@ impl Drawer<'_> {
             eye: Vector3 {
                 x: 0.0,
                 y: 0.0,
-                z: 7.0,
+                z: 4.0,
             },
         }
     }

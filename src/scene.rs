@@ -40,7 +40,7 @@ impl<'obj> Scene<'obj> {
             None => return spectrum::BLACK,
         };
 
-        let material = intersection.material;
+        let material = intersection.material.clone();
         let mut light = spectrum::BLACK;
 
         if intersection.normal.dot(&ray.dir) < 0.0 {
@@ -53,19 +53,19 @@ impl<'obj> Scene<'obj> {
 
             // 屈折成分
             if 0.0 < material.refractive {
-                let refraction = ray.dir.refract(
+                let refraction_ray = ray.dir.refract(
                     intersection.normal,
                     VACUUM_REFRACTIVE_INDEX / material.refractive_index,
                 );
 
-                let color = self.trace(Ray::new(intersection.point, refraction), depth + 1);
+                let color = self.trace(Ray::new(intersection.point, refraction_ray), depth + 1);
                 light += color.scale(material.refractive) * material.diffuse;
             }
 
             // 拡散反射成分
-            let kd = 1.0 - material.reflective;
+            let kd = 1.0 - material.reflective - material.refractive;
             if 0.0 < kd {
-                let color = self.lighting(intersection.point, intersection.normal, material);
+                let color = self.lighting(intersection.point, intersection.normal, intersection.material);
                 light += color.scale(kd);
             }
         } else {
