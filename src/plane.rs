@@ -4,13 +4,13 @@ use crate::ray::Ray;
 use crate::vector::Vector3;
 
 pub struct Plane {
-    pub normal: Vector3<f64>,
+    pub normal: Vector3,
     pub distance: f64,
     pub material: Material,
 }
 
 impl Plane {
-    pub fn new(point: Vector3<f64>, normal: Vector3<f64>, material: Material) -> Self {
+    pub fn new(point: Vector3, normal: Vector3, material: Material) -> Self {
         let normal = normal.normalize();
 
         Self {

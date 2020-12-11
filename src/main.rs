@@ -111,7 +111,7 @@ fn main() -> Result<(), String> {
 
 struct Drawer<'obj> {
     scene: Scene<'obj>,
-    eye: Vector3<f64>,
+    eye: Vector3,
 }
 
 impl Drawer<'_> {
@@ -170,7 +170,7 @@ impl Drawer<'_> {
                 floor1_material.clone(),
             ),
             grid_width: 1.0,
-            alt_material: floor2_material.clone()
+            alt_material: floor2_material.clone(),
         });
 
         let decoder = png::Decoder::new(File::open("./wall.png").unwrap());

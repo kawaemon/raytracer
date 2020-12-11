@@ -1,27 +1,16 @@
-use num_traits::{Float, NumOps, One, Signed};
 use std::clone::Clone;
 use std::marker::Copy;
 use std::ops::{Add, AddAssign, Neg, Sub};
 
-pub struct Vector3<T: NumOps> {
-    pub x: T,
-    pub y: T,
-    pub z: T,
+#[derive(Clone, Copy)]
+pub struct Vector3 {
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
 }
 
-impl<T: NumOps + Clone + Copy> Copy for Vector3<T> {}
-impl<T: NumOps + Clone> Clone for Vector3<T> {
-    fn clone(&self) -> Self {
-        Self {
-            x: self.x.clone(),
-            y: self.y.clone(),
-            z: self.z.clone(),
-        }
-    }
-}
-
-impl<T: NumOps> Add for Vector3<T> {
-    type Output = Vector3<T>;
+impl Add for Vector3 {
+    type Output = Self;
 
     fn add(self, other: Self) -> Self::Output {
         Self {
@@ -32,7 +21,7 @@ impl<T: NumOps> Add for Vector3<T> {
     }
 }
 
-impl<T: NumOps + AddAssign> AddAssign for Vector3<T> {
+impl AddAssign for Vector3 {
     fn add_assign(&mut self, other: Self) {
         self.x += other.x;
         self.y += other.y;
@@ -40,8 +29,8 @@ impl<T: NumOps + AddAssign> AddAssign for Vector3<T> {
     }
 }
 
-impl<T: NumOps> Sub for Vector3<T> {
-    type Output = Vector3<T>;
+impl Sub for Vector3 {
+    type Output = Self;
 
     fn sub(self, other: Self) -> Self::Output {
         Self {
@@ -52,8 +41,8 @@ impl<T: NumOps> Sub for Vector3<T> {
     }
 }
 
-impl<T: NumOps + Signed> Neg for Vector3<T> {
-    type Output = Vector3<T>;
+impl Neg for Vector3 {
+    type Output = Self;
 
     fn neg(self) -> Self::Output {
         Self {
@@ -64,42 +53,36 @@ impl<T: NumOps + Signed> Neg for Vector3<T> {
     }
 }
 
-impl<T: NumOps + Clone> Vector3<T> {
-    pub fn scale(&self, n: T) -> Self {
+impl Vector3 {
+    pub fn scale(&self, n: f64) -> Self {
         Self {
-            x: self.x.clone() * n.clone(),
-            y: self.y.clone() * n.clone(),
-            z: self.z.clone() * n.clone(),
+            x: self.x * n,
+            y: self.y * n,
+            z: self.z * n,
         }
     }
 
-    pub fn dot(&self, other: &Self) -> T {
-        self.x.clone() * other.x.clone()
-            + self.y.clone() * other.y.clone()
-            + self.z.clone() * other.z.clone()
+    pub fn dot(&self, other: &Self) -> f64 {
+        self.x * other.x + self.y * other.y + self.z * other.z
     }
-}
 
-impl<T: NumOps + Clone + One> Vector3<T> {
     pub fn reflect(&self, normal: &Self) -> Self {
-        self.clone() - normal.scale((T::one() + T::one()) * self.dot(&normal))
+        *self - normal.scale(2.0 * self.dot(&normal))
     }
-}
 
-impl<T: Float> Vector3<T> {
-    pub fn len(&self) -> T {
-        T::sqrt(square(self.x) + square(self.y) + square(self.z))
+    pub fn len(&self) -> f64 {
+        f64::sqrt(square(self.x) + square(self.y) + square(self.z))
     }
 
     pub fn normalize(&self) -> Self {
-        self.scale(T::one() / self.len())
+        self.scale(1.0 / self.len())
     }
 
-    pub fn refract(&self, normal: Self, eta: T) -> Self {
+    pub fn refract(&self, normal: Self, eta: f64) -> Self {
         let dot = self.dot(&normal);
-        let d = T::one() - square(eta) * (T::one() - square(dot));
+        let d = 1.0 - square(eta) * (1.0 - square(dot));
 
-        if T::zero() < d {
+        if 0.0 < d {
             let a = (*self - normal.scale(dot)).scale(eta);
             let b = normal.scale(d.sqrt());
             return a - b;
@@ -109,6 +92,6 @@ impl<T: Float> Vector3<T> {
     }
 }
 
-fn square<T: NumOps + Clone>(n: T) -> T {
-    n.clone() * n.clone()
+fn square(n: f64) -> f64 {
+    n * n
 }

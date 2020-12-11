@@ -4,7 +4,7 @@ use crate::ray::Ray;
 use crate::vector::Vector3;
 
 pub struct Sphere {
-    pub center: Vector3<f64>,
+    pub center: Vector3,
     pub radius: f64,
     pub material: Material,
 }

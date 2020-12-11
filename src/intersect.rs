@@ -8,7 +8,7 @@ pub trait Intersectable {
 
 pub struct Intersection {
     pub distance: f64,
-    pub point: Vector3<f64>,
-    pub normal: Vector3<f64>, // 法線
+    pub point: Vector3,
+    pub normal: Vector3, // 法線
     pub material: Material,
 }

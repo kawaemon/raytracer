@@ -65,7 +65,12 @@ impl<'obj> Scene<'obj> {
             // 拡散反射成分
             let kd = 1.0 - material.reflective - material.refractive;
             if 0.0 < kd {
-                let color = self.lighting(intersection.point, intersection.normal, intersection.material);
+                let color = self.lighting(
+                    intersection.point,
+                    intersection.normal,
+                    intersection.material,
+                );
+
                 light += color.scale(kd);
             }
         } else {
@@ -90,7 +95,7 @@ impl<'obj> Scene<'obj> {
             .min_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap())
     }
 
-    fn visible(&self, org: Vector3<f64>, target: Vector3<f64>) -> bool {
+    fn visible(&self, org: Vector3, target: Vector3) -> bool {
         let v = (target - org).normalize();
         let shadow_ray = Ray::new(org, v);
 
@@ -102,10 +107,10 @@ impl<'obj> Scene<'obj> {
 
     fn diffuse_lighting(
         &self,
-        point: Vector3<f64>,
-        normal: Vector3<f64>,
+        point: Vector3,
+        normal: Vector3,
         diffuse_color: Spectrum,
-        light_pos: Vector3<f64>,
+        light_pos: Vector3,
         light_power: Spectrum,
     ) -> Spectrum {
         let v = light_pos - point;
@@ -121,7 +126,7 @@ impl<'obj> Scene<'obj> {
         spectrum::BLACK
     }
 
-    fn lighting(&self, point: Vector3<f64>, normal: Vector3<f64>, material: Material) -> Spectrum {
+    fn lighting(&self, point: Vector3, normal: Vector3, material: Material) -> Spectrum {
         self.lights
             .iter()
             .map(|x| self.diffuse_lighting(point, normal, material.diffuse, x.pos, x.power))

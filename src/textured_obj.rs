@@ -14,9 +14,9 @@ where
     pub texture_size: f64,
     pub image_width: u32,
     pub image_height: u32,
-    pub origin: Vector3<f64>,
-    pub u_direction: Vector3<f64>,
-    pub v_direction: Vector3<f64>,
+    pub origin: Vector3,
+    pub u_direction: Vector3,
+    pub v_direction: Vector3,
 }
 
 impl<T, I> Intersectable for TexturedObj<T, I>
