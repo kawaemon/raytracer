@@ -38,20 +38,30 @@ impl<'obj> Scene<'obj> {
 
         let intersection = match self.find_nearest_intersection(&ray) {
             Some(i) => i,
-            None => return Spectrum {
-                r: 0.7,
-                g: 0.7,
-                b: 0.7,
+            None => {
+                return Spectrum {
+                    r: 0.7,
+                    g: 0.7,
+                    b: 0.7,
+                }
             }
         };
 
-        let reflection_ray = intersection.normal.random_hemisphere(|| OsRng.gen_range(0.0, 1.0));
-        let mut light = self.trace(Ray {
-            origin: intersection.point,
-            dir: reflection_ray
-        }, depth + 1);
+        let reflection_ray = intersection
+            .normal
+            .random_hemisphere(|| OsRng.gen_range(0.0, 1.0));
+        let mut light = self.trace(
+            Ray {
+                origin: intersection.point,
+                dir: reflection_ray,
+            },
+            depth + 1,
+        );
 
-        let fr = intersection.material.diffuse.scale(1.0 / std::f64::consts::PI);
+        let fr = intersection
+            .material
+            .diffuse
+            .scale(1.0 / std::f64::consts::PI);
         let factor = 2.0 * std::f64::consts::PI * intersection.normal.dot(&reflection_ray);
 
         (light * fr).scale(factor)

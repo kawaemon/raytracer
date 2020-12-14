@@ -37,6 +37,7 @@ const WIDTH: u32 = 512;
 const HEIGHT: u32 = 512;
 const FPS: u64 = 1;
 const WARNING_THRESHOLD_MS: u128 = 100;
+const SAMPLES: usize = 100;
 
 fn main() -> Result<(), String> {
     let sdl = sdl2::init()?;
@@ -224,13 +225,17 @@ impl Drawer<'_> {
 
         for x in 0..WIDTH {
             for y in 0..HEIGHT {
-                canvas.set_draw_color(
-                    self.scene
-                        .trace(self.calc_primary_ray(x as _, y as _), 0)
-                        .to_color(),
-                );
+                let mut sum = spectrum::BLACK;
+                let primary_ray = self.calc_primary_ray(x as _, y as _);
+
+                for _ in 0..SAMPLES {
+                    sum += self.scene.trace(primary_ray.clone(), 0);
+                }
+
+                canvas.set_draw_color(sum.scale(1.0 / (SAMPLES as f64)).to_color());
                 canvas.draw_point(Point::new(x as _, y as _))?;
             }
+            println!("{}/{}", x+1, HEIGHT);
         }
 
         Ok(())

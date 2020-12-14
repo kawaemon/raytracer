@@ -2,6 +2,7 @@ use crate::vector::Vector3;
 
 const EPSILON: f64 = 0.001;
 
+#[derive(Clone)]
 pub struct Ray {
     pub origin: Vector3,
     pub dir: Vector3,
