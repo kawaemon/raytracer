@@ -37,7 +37,7 @@ const WIDTH: u32 = 512;
 const HEIGHT: u32 = 512;
 const FPS: u64 = 1;
 const WARNING_THRESHOLD_MS: u128 = 100;
-const SAMPLES: usize = 100;
+const SAMPLES: usize = 5;
 
 fn main() -> Result<(), String> {
     let sdl = sdl2::init()?;

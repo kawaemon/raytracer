@@ -49,7 +49,7 @@ impl<'obj> Scene<'obj> {
 
         let reflection_ray = intersection
             .normal
-            .random_hemisphere(|| OsRng.gen_range(0.0, 1.0));
+            .random_hemisphere(|| OsRng.gen_range(-1.0, 1.0));
         let mut light = self.trace(
             Ray {
                 origin: intersection.point,
