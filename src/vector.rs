@@ -2,7 +2,7 @@ use std::clone::Clone;
 use std::marker::Copy;
 use std::ops::{Add, AddAssign, Neg, Sub};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct Vector3 {
     pub x: f64,
     pub y: f64,
@@ -89,6 +89,32 @@ impl Vector3 {
         }
 
         self.reflect(&normal)
+    }
+
+    /// rng must produce numbers which is in -1.0..1.0
+    pub fn random_hemisphere(&self, mut rng: impl FnMut() -> f64) -> Self {
+        let mut safer_rng = || {
+            let value = rng();
+            assert!((-1.0..1.0).contains(&value));
+            value
+        };
+
+        loop {
+            let mut dir = Vector3 {
+                x: safer_rng(),
+                y: safer_rng(),
+                z: safer_rng(),
+            };
+
+            if dir.len() < 1.0 {
+                dir = dir.normalize();
+                if dir.dot(self) < 0.0 {
+                    dir = -dir;
+                }
+            }
+
+            break dir;
+        }
     }
 }
 

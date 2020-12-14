@@ -64,7 +64,7 @@ fn main() -> Result<(), String> {
             drawer.initialize(canvas).unwrap();
         })
         .map_err(|e| e.to_string())?;
-    println!("initialize took {}ms", time.elapsed().as_millis());
+    println!("rendering took {}ms", time.elapsed().as_millis());
 
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -120,6 +120,23 @@ impl Drawer<'_> {
 
         scene.add_object(Sphere {
             center: Vector3 {
+                x: -2.2,
+                y: 0.0,
+                z: 0.0,
+            },
+            radius: 1.0,
+            material: Material {
+                diffuse: Spectrum {
+                    r: 0.7,
+                    g: 0.3,
+                    b: 0.9,
+                },
+                ..Material::default()
+            },
+        });
+
+        scene.add_object(Sphere {
+            center: Vector3 {
                 x: 0.0,
                 y: 0.0,
                 z: 0.0,
@@ -127,124 +144,58 @@ impl Drawer<'_> {
             radius: 1.0,
             material: Material {
                 diffuse: Spectrum {
-                    r: 0.1,
-                    g: 0.5,
-                    b: 0.9,
+                    r: 0.9,
+                    g: 0.7,
+                    b: 0.3,
                 },
-                refractive: 0.9,
-                refractive_index: 1.5,
                 ..Material::default()
             },
         });
 
-        let floor1_material = Material {
-            diffuse: Spectrum {
-                r: 0.5,
-                g: 0.5,
-                b: 0.5,
-            },
-            ..Material::default()
-        };
-
-        let floor2_material = Material {
-            diffuse: Spectrum {
-                r: 0.2,
-                g: 0.2,
-                b: 0.2,
-            },
-            ..Material::default()
-        };
-
-        scene.add_object(CheckedObject {
-            object: Plane::new(
-                Vector3 {
-                    x: 0.0,
-                    y: -1.0,
-                    z: 0.0,
-                },
-                Vector3 {
-                    x: 0.0,
-                    y: 1.0,
-                    z: 0.0,
-                },
-                floor1_material.clone(),
-            ),
-            grid_width: 1.0,
-            alt_material: floor2_material.clone(),
-        });
-
-        let decoder = png::Decoder::new(File::open("./wall.png").unwrap());
-        let (info, mut reader) = decoder.read_info().unwrap();
-        let mut buffer = vec![0; info.buffer_size()];
-        reader.next_frame(&mut buffer).unwrap();
-        let (width, height) = (info.width, info.height);
-
-        scene.add_object(TexturedObj {
-            object: Plane::new(
-                Vector3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: -5.0,
-                },
-                Vector3 {
-                    x: 0.0,
-                    y: 0.0,
-                    z: 1.0,
-                },
-                floor1_material,
-            ),
-            image: move |x, y| {
-                let base_pos = ((y * width + x) * 4) as usize;
-
-                let r = buffer[base_pos];
-                let g = buffer[base_pos + 1];
-                let b = buffer[base_pos + 2];
-
-                Spectrum {
-                    r: r as f64 / std::u8::MAX as f64,
-                    g: g as f64 / std::u8::MAX as f64,
-                    b: b as f64 / std::u8::MAX as f64,
-                }
-            },
-            texture_size: 10.0,
-            image_width: width,
-            image_height: height,
-            origin: Vector3 {
-                x: -5.0,
-                y: -5.0,
-                z: -5.0,
-            },
-            u_direction: Vector3 {
-                x: 1.0,
+        scene.add_object(Sphere {
+            center: Vector3 {
+                x: 2.2,
                 y: 0.0,
                 z: 0.0,
             },
-            v_direction: Vector3 {
+            radius: 1.0,
+            material: Material {
+                diffuse: Spectrum {
+                    r: 0.3,
+                    g: 0.9,
+                    b: 0.7,
+                },
+                ..Material::default()
+            },
+        });
+
+        scene.add_object(Plane::new(
+            Vector3 {
+                x: 0.0,
+                y: -1.0,
+                z: 0.0,
+            },
+            Vector3 {
                 x: 0.0,
                 y: 1.0,
                 z: 0.0,
             },
-        });
-
-        scene.add_light(Light {
-            pos: Vector3 {
-                x: 100.0,
-                y: 100.0,
-                z: 100.0,
+            Material {
+                diffuse: Spectrum {
+                    r: 0.9,
+                    g: 0.9,
+                    b: 0.9,
+                },
+                ..Material::default()
             },
-            power: Spectrum {
-                r: 800_000.0,
-                g: 800_000.0,
-                b: 800_000.0,
-            },
-        });
+        ));
 
         Self {
             scene,
             eye: Vector3 {
                 x: 0.0,
                 y: 0.0,
-                z: 4.0,
+                z: 7.0,
             },
         }
     }
