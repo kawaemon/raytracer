@@ -251,6 +251,6 @@ impl Drawer<'_> {
         let samples = self.samples;
         self.canvas
             .iter()
-            .map(move |x| x.scale(1.0 / (samples as f64)))
+            .map(move |x| x.scale(1.0 / (samples as f64).max(1.0)))
     }
 }
