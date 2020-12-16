@@ -16,6 +16,7 @@ use material::Material;
 use plane::Plane;
 use ray::Ray;
 use scene::Scene;
+use spectrum::Color;
 use spectrum::Spectrum;
 use sphere::Sphere;
 use textured_obj::TexturedObj;
@@ -24,21 +25,71 @@ use vector::Vector3;
 use sdl2::{
     event::Event,
     keyboard::Keycode,
-    pixels::{Color, PixelFormatEnum},
+    pixels::{Color as SDLColor, PixelFormatEnum},
     rect::{Point, Rect},
     render::Canvas,
     video::Window,
 };
 
 use std::fs::File;
+use std::io::BufWriter;
+use std::path::Path;
 use std::time::Instant;
 
 const WIDTH: u32 = 512;
 const HEIGHT: u32 = 512;
 const FPS: u64 = 1;
-const SAMPLES: usize = 100;
+const SAMPLES: u32 = 100;
 
 fn main() -> Result<(), String> {
+    let mut drawer = Drawer::new(WIDTH, HEIGHT);
+
+    let headless = std::env::var("RAYTRACER_HEADLESS").is_ok();
+
+    if headless {
+        println!("headless mode");
+
+        let samples = match std::env::var("RAYTRACER_SAMPLES") {
+            Ok(samples_str) => match samples_str.parse::<u32>() {
+                Ok(v) => v,
+                Err(e) => return Err(e.to_string()),
+            },
+            Err(_) => SAMPLES,
+        };
+
+        for count in 0..samples {
+            println!("sampling {}/{}", count, samples);
+            drawer.sample();
+        }
+
+        println!("writing into ./rendered.png");
+
+        let path = Path::new("./rendered.png");
+        let file = File::create(path).unwrap();
+        let mut writer = BufWriter::new(file);
+
+        let mut encoder = png::Encoder::new(writer, WIDTH, HEIGHT);
+        encoder.set_color(png::ColorType::RGBA);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().unwrap();
+
+        let mut data = vec![];
+
+        for c in drawer
+            .pixels()
+            .map(|x| x.to_color())
+        {
+            data.push(c.r);
+            data.push(c.g);
+            data.push(c.b);
+            data.push(255);
+        }
+
+        writer.write_image_data(data.as_slice()).unwrap();
+
+        return Ok(())
+    }
+
     let sdl = sdl2::init()?;
     let video = sdl.video()?;
 
@@ -56,8 +107,6 @@ fn main() -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     let mut event_pump = sdl.event_pump()?;
-
-    let mut drawer = Drawer::new(WIDTH, HEIGHT);
 
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -82,14 +131,16 @@ fn main() -> Result<(), String> {
                 let mut iter = drawer.pixels();
                 for x in 0..WIDTH {
                     for y in 0..HEIGHT {
-                        canvas.set_draw_color(iter.next().unwrap().to_color());
+                        let color = iter.next().unwrap().to_color();
+
+                        canvas.set_draw_color(SDLColor::RGB(color.r, color.g, color.b));
                         canvas.draw_point(Point::new(x as _, y as _));
                     }
                 }
             })
             .map_err(|e| e.to_string())?;
 
-        canvas.set_draw_color(Color::RGB(0, 0, 0));
+        canvas.set_draw_color(SDLColor::RGB(0, 0, 0));
         canvas.clear();
         canvas.copy_ex(
             &texture,

@@ -1,5 +1,11 @@
-use sdl2::pixels::Color;
 use std::ops::{Add, AddAssign, Mul};
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct Color {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+}
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Spectrum {
@@ -25,11 +31,11 @@ impl Spectrum {
     }
 
     pub fn to_color(&self) -> Color {
-        Color::RGB(
-            (self.r * 255.0).min(255.0) as u8,
-            (self.g * 255.0).min(255.0) as u8,
-            (self.b * 255.0).min(255.0) as u8,
-        )
+        Color {
+            r: (self.r * 255.0).min(255.0) as u8,
+            g: (self.g * 255.0).min(255.0) as u8,
+            b: (self.b * 255.0).min(255.0) as u8,
+        }
     }
 }
 
