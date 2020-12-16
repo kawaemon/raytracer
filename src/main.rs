@@ -36,8 +36,7 @@ use std::time::Instant;
 const WIDTH: u32 = 512;
 const HEIGHT: u32 = 512;
 const FPS: u64 = 1;
-const WARNING_THRESHOLD_MS: u128 = 100;
-const SAMPLES: usize = 5;
+const SAMPLES: usize = 100;
 
 fn main() -> Result<(), String> {
     let sdl = sdl2::init()?;
@@ -57,15 +56,8 @@ fn main() -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     let mut event_pump = sdl.event_pump()?;
-    let mut drawer = Drawer::new();
 
-    let mut time = Instant::now();
-    canvas
-        .with_texture_canvas(&mut texture, |canvas| {
-            drawer.initialize(canvas).unwrap();
-        })
-        .map_err(|e| e.to_string())?;
-    println!("rendering took {}ms", time.elapsed().as_millis());
+    let mut drawer = Drawer::new(WIDTH, HEIGHT);
 
     'running: loop {
         for event in event_pump.poll_iter() {
@@ -79,16 +71,23 @@ fn main() -> Result<(), String> {
             }
         }
 
-        time = Instant::now();
+        let time = Instant::now();
+        drawer.sample();
+        let elapsed = time.elapsed().as_millis();
+
+        println!("sampling took {}ms", elapsed);
+
         canvas
             .with_texture_canvas(&mut texture, |canvas| {
-                drawer.draw(canvas).unwrap();
+                let mut iter = drawer.pixels();
+                for x in 0..WIDTH {
+                    for y in 0..HEIGHT {
+                        canvas.set_draw_color(iter.next().unwrap().to_color());
+                        canvas.draw_point(Point::new(x as _, y as _));
+                    }
+                }
             })
             .map_err(|e| e.to_string())?;
-        let elapsed = time.elapsed().as_millis();
-        if WARNING_THRESHOLD_MS <= elapsed {
-            println!("drawing tooks longer than usual: {}ms", elapsed);
-        }
 
         canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.clear();
@@ -113,10 +112,14 @@ fn main() -> Result<(), String> {
 struct Drawer<'obj> {
     scene: Scene<'obj>,
     eye: Vector3,
+    width: u32,
+    height: u32,
+    samples: u32,
+    canvas: Vec<Spectrum>,
 }
 
 impl Drawer<'_> {
-    fn new() -> Self {
+    fn new(width: u32, height: u32) -> Self {
         let mut scene = Scene::new();
 
         scene.add_object(Sphere {
@@ -198,6 +201,17 @@ impl Drawer<'_> {
                 y: 0.0,
                 z: 7.0,
             },
+            width,
+            height,
+            samples: 0,
+            canvas: vec![
+                Spectrum {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0
+                };
+                (width * height) as usize
+            ],
         }
     }
 
@@ -220,29 +234,23 @@ impl Drawer<'_> {
         )
     }
 
-    fn initialize(&mut self, canvas: &mut Canvas<Window>) -> Result<(), String> {
-        canvas.set_draw_color(Color::RGB(0, 0, 0));
-        canvas.clear();
-
-        for x in 0..WIDTH {
-            for y in 0..HEIGHT {
-                let mut sum = spectrum::BLACK;
+    fn sample(&mut self) {
+        for x in 0..self.width {
+            for y in 0..self.height {
+                let index = (x * self.width) + y;
                 let primary_ray = self.calc_primary_ray(x as _, y as _);
 
-                for _ in 0..SAMPLES {
-                    sum += self.scene.trace(primary_ray.clone(), 0);
-                }
-
-                canvas.set_draw_color(sum.scale(1.0 / (SAMPLES as f64)).to_color());
-                canvas.draw_point(Point::new(x as _, y as _))?;
+                self.canvas[index as usize] += self.scene.trace(primary_ray, 0);
             }
-            println!("{}/{}", x + 1, HEIGHT);
         }
 
-        Ok(())
+        self.samples += 1;
     }
 
-    fn draw(&mut self, _canvas: &mut Canvas<Window>) -> Result<(), String> {
-        Ok(())
+    fn pixels<'a>(&'a self) -> impl Iterator<Item = Spectrum> + 'a {
+        let samples = self.samples;
+        self.canvas
+            .iter()
+            .map(move |x| x.scale(1.0 / (samples as f64)))
     }
 }
