@@ -5,6 +5,7 @@ mod material;
 mod plane;
 mod ray;
 mod scene;
+mod simd;
 mod spectrum;
 mod sphere;
 mod textured_obj;
@@ -120,11 +121,7 @@ impl Drawer<'_> {
         let mut scene = Scene::new();
 
         scene.add_object(Sphere {
-            center: Vector3 {
-                x: -2.2,
-                y: 0.0,
-                z: 0.0,
-            },
+            center: Vector3::new(-2.2, 0.0, 0.0),
             radius: 1.0,
             material: Material {
                 diffuse: Spectrum {
@@ -137,11 +134,7 @@ impl Drawer<'_> {
         });
 
         scene.add_object(Sphere {
-            center: Vector3 {
-                x: 0.0,
-                y: 0.0,
-                z: 0.0,
-            },
+            center: Vector3::new(0.0, 0.0, 0.0),
             radius: 1.0,
             material: Material {
                 diffuse: Spectrum {
@@ -154,11 +147,7 @@ impl Drawer<'_> {
         });
 
         scene.add_object(Sphere {
-            center: Vector3 {
-                x: 2.2,
-                y: 0.0,
-                z: 0.0,
-            },
+            center: Vector3::new(2.2, 0.0, 0.0),
             radius: 1.0,
             material: Material {
                 diffuse: Spectrum {
@@ -171,16 +160,8 @@ impl Drawer<'_> {
         });
 
         scene.add_object(Plane::new(
-            Vector3 {
-                x: 0.0,
-                y: -1.0,
-                z: 0.0,
-            },
-            Vector3 {
-                x: 0.0,
-                y: 1.0,
-                z: 0.0,
-            },
+            Vector3::new(0.0, -1.0, 0.0),
+            Vector3::new(0.0, 1.0, 0.0),
             Material {
                 diffuse: Spectrum {
                     r: 0.9,
@@ -193,11 +174,7 @@ impl Drawer<'_> {
 
         Self {
             scene,
-            eye: Vector3 {
-                x: 0.0,
-                y: 0.0,
-                z: 7.0,
-            },
+            eye: Vector3::new(0.0, 0.0, 7.0),
         }
     }
 
@@ -209,14 +186,7 @@ impl Drawer<'_> {
         let dy = -(y + 0.5 - height / 2.0);
         let dz = -image_plane;
 
-        Ray::new(
-            self.eye,
-            Vector3 {
-                x: dx,
-                y: dy,
-                z: dz,
-            },
-        )
+        Ray::new(self.eye, Vector3::new(dx, dy, dz))
     }
 
     fn initialize(&mut self, canvas: &mut Canvas<Window>) -> Result<(), String> {
@@ -235,7 +205,7 @@ impl Drawer<'_> {
                 canvas.set_draw_color(sum.scale(1.0 / (SAMPLES as f64)).to_color());
                 canvas.draw_point(Point::new(x as _, y as _))?;
             }
-            println!("{}/{}", x+1, HEIGHT);
+            println!("{}/{}", x + 1, HEIGHT);
         }
 
         Ok(())

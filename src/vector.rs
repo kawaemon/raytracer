@@ -1,12 +1,11 @@
 use std::clone::Clone;
 use std::marker::Copy;
-use std::ops::{Add, AddAssign, Neg, Sub};
+use std::ops::{Add, AddAssign, Neg, Sub, Deref};
+use crate::simd::f64x3;
 
 #[derive(Clone, Copy, Default)]
 pub struct Vector3 {
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
+    inner: f64x3
 }
 
 impl Add for Vector3 {
@@ -14,18 +13,14 @@ impl Add for Vector3 {
 
     fn add(self, other: Self) -> Self::Output {
         Self {
-            x: self.x + other.x,
-            y: self.y + other.y,
-            z: self.z + other.z,
+            inner: self.inner + other.inner
         }
     }
 }
 
 impl AddAssign for Vector3 {
     fn add_assign(&mut self, other: Self) {
-        self.x += other.x;
-        self.y += other.y;
-        self.z += other.z;
+        self.inner += other.inner;
     }
 }
 
@@ -34,9 +29,7 @@ impl Sub for Vector3 {
 
     fn sub(self, other: Self) -> Self::Output {
         Self {
-            x: self.x - other.x,
-            y: self.y - other.y,
-            z: self.z - other.z,
+            inner: self.inner - other.inner
         }
     }
 }
@@ -46,24 +39,48 @@ impl Neg for Vector3 {
 
     fn neg(self) -> Self::Output {
         Self {
-            x: -self.x,
-            y: -self.y,
-            z: -self.z,
+            inner: f64x3 {
+                a: -self.inner.a,
+                b: -self.inner.b,
+                c: -self.inner.c,
+                ..f64x3::default()
+            }
         }
     }
 }
 
 impl Vector3 {
+    pub fn new(x: f64, y: f64, z: f64) -> Self {
+        Self {
+            inner: f64x3 {
+                a: x,
+                b: y,
+                c: z,
+                ..f64x3::default()
+            }
+        }
+    }
+
+    pub fn x(&self) -> f64 {
+        self.inner.a
+    }
+
+    pub fn y(&self) -> f64 {
+        self.inner.b
+    }
+
+    pub fn z(&self) -> f64 {
+        self.inner.c
+    }
+
     pub fn scale(&self, n: f64) -> Self {
         Self {
-            x: self.x * n,
-            y: self.y * n,
-            z: self.z * n,
+            inner: self.inner * n
         }
     }
 
     pub fn dot(&self, other: &Self) -> f64 {
-        self.x * other.x + self.y * other.y + self.z * other.z
+        (self.inner * other.inner).sum()
     }
 
     pub fn reflect(&self, normal: &Self) -> Self {
@@ -71,7 +88,7 @@ impl Vector3 {
     }
 
     pub fn len(&self) -> f64 {
-        f64::sqrt(square(self.x) + square(self.y) + square(self.z))
+        (self.inner * self.inner).sum().sqrt()
     }
 
     pub fn normalize(&self) -> Self {
@@ -95,16 +112,16 @@ impl Vector3 {
     pub fn random_hemisphere(&self, mut rng: impl FnMut() -> f64) -> Self {
         let mut safer_rng = || {
             let value = rng();
-            assert!((-1.0..1.0).contains(&value));
+            debug_assert!((-1.0..1.0).contains(&value));
             value
         };
 
         loop {
-            let mut dir = Vector3 {
-                x: safer_rng(),
-                y: safer_rng(),
-                z: safer_rng(),
-            };
+            let mut dir = Vector3::new(
+                 safer_rng(),
+                 safer_rng(),
+                 safer_rng(),
+            );
 
             if dir.len() < 1.0 {
                 dir = dir.normalize();
