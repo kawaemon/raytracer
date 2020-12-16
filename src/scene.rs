@@ -40,9 +40,9 @@ impl<'obj> Scene<'obj> {
             Some(i) => i,
             None => {
                 return Spectrum {
-                    r: 0.7,
-                    g: 0.7,
-                    b: 0.7,
+                    r: 1.0,
+                    g: 1.0,
+                    b: 1.0,
                 }
             }
         };
@@ -50,13 +50,7 @@ impl<'obj> Scene<'obj> {
         let reflection_ray = intersection
             .normal
             .random_hemisphere(|| OsRng.gen_range(-1.0, 1.0));
-        let mut light = self.trace(
-            Ray {
-                origin: intersection.point,
-                dir: reflection_ray,
-            },
-            depth + 1,
-        );
+        let mut light = self.trace(Ray::new(intersection.point, reflection_ray), depth + 1);
 
         let fr = intersection
             .material

@@ -93,17 +93,18 @@ impl Vector3 {
 
     /// rng must produce numbers which is in -1.0..1.0
     pub fn random_hemisphere(&self, mut rng: impl FnMut() -> f64) -> Self {
-        let mut safer_rng = || {
+        #[cfg(debug_assertions)]
+        let mut rng = || {
             let value = rng();
-            assert!((-1.0..1.0).contains(&value));
+            debug_assert!((-1.0..=1.0).contains(&value));
             value
         };
 
         loop {
             let mut dir = Vector3 {
-                x: safer_rng(),
-                y: safer_rng(),
-                z: safer_rng(),
+                x: rng(),
+                y: rng(),
+                z: rng(),
             };
 
             if dir.len() < 1.0 {
@@ -111,9 +112,8 @@ impl Vector3 {
                 if dir.dot(self) < 0.0 {
                     dir = -dir;
                 }
+                break dir;
             }
-
-            break dir;
         }
     }
 }

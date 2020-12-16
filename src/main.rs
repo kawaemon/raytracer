@@ -215,7 +215,8 @@ impl Drawer<'_> {
                 x: dx,
                 y: dy,
                 z: dz,
-            },
+            }
+            .normalize(),
         )
     }
 
@@ -235,7 +236,7 @@ impl Drawer<'_> {
                 canvas.set_draw_color(sum.scale(1.0 / (SAMPLES as f64)).to_color());
                 canvas.draw_point(Point::new(x as _, y as _))?;
             }
-            println!("{}/{}", x+1, HEIGHT);
+            println!("{}/{}", x + 1, HEIGHT);
         }
 
         Ok(())
