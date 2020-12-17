@@ -36,6 +36,10 @@ use std::io::BufWriter;
 use std::path::Path;
 use std::time::Instant;
 
+use rand::Rng;
+use rand::rngs::OsRng;
+
+
 const WIDTH: u32 = 512;
 const HEIGHT: u32 = 512;
 const FPS: u64 = 1;
@@ -267,8 +271,8 @@ impl Drawer<'_> {
         let (width, height) = (WIDTH as f64, HEIGHT as f64);
         let image_plane = height;
 
-        let dx = x + 0.5 - width / 2.0;
-        let dy = -(y + 0.5 - height / 2.0);
+        let dx = x + OsRng.gen_range(0.0, 1.0) - width / 2.0;
+        let dy = -(y + OsRng.gen_range(0.0, 1.0) - height / 2.0);
         let dz = -image_plane;
 
         Ray::new(
