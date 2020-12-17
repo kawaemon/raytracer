@@ -75,10 +75,7 @@ fn main() -> Result<(), String> {
 
         let mut data = vec![];
 
-        for c in drawer
-            .pixels()
-            .map(|x| x.to_color())
-        {
+        for c in drawer.pixels().map(|x| x.to_color()) {
             data.push(c.r);
             data.push(c.g);
             data.push(c.b);
@@ -87,7 +84,7 @@ fn main() -> Result<(), String> {
 
         writer.write_image_data(data.as_slice()).unwrap();
 
-        return Ok(())
+        return Ok(());
     }
 
     let sdl = sdl2::init()?;
@@ -129,8 +126,8 @@ fn main() -> Result<(), String> {
         canvas
             .with_texture_canvas(&mut texture, |canvas| {
                 let mut iter = drawer.pixels();
-                for x in 0..WIDTH {
-                    for y in 0..HEIGHT {
+                for y in 0..HEIGHT {
+                    for x in 0..WIDTH {
                         let color = iter.next().unwrap().to_color();
 
                         canvas.set_draw_color(SDLColor::RGB(color.r, color.g, color.b));
@@ -286,9 +283,9 @@ impl Drawer<'_> {
     }
 
     fn sample(&mut self) {
-        for x in 0..self.width {
-            for y in 0..self.height {
-                let index = (x * self.width) + y;
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let index = (y * self.height) + x;
                 let primary_ray = self.calc_primary_ray(x as _, y as _);
 
                 self.canvas[index as usize] += self.scene.trace(primary_ray, 0);
