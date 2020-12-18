@@ -330,15 +330,15 @@ impl Drawer {
             }));
         }
 
-        self.samples += GUI_SAMPLE_STEP;
-
         for handle in handles {
             handle.join().unwrap();
         }
 
         let elapsed = time.elapsed().as_millis();
 
-        println!("{} sample took {}ms",samples, elapsed);
+        self.samples += samples;
+
+        println!("{} sample took {}ms", samples, elapsed);
     }
 
     fn pixels<'a>(&'a self) -> Vec<Spectrum> {
