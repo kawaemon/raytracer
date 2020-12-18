@@ -43,6 +43,7 @@ use rand::Rng;
 const WIDTH: u32 = 512;
 const HEIGHT: u32 = 512;
 const FPS: u64 = 1;
+const GUI_SAMPLE_STEP: u32 = 10;
 const SAMPLES: u32 = 500;
 const WORKERS: usize = 8;
 const WORKERS_STEP: u32 = 5;
@@ -127,7 +128,7 @@ fn main() -> Result<(), String> {
         drawer.sample();
         let elapsed = time.elapsed().as_millis();
 
-        println!("sampling took {}ms", elapsed);
+        println!("{} sample took {}ms", GUI_SAMPLE_STEP, elapsed);
 
         canvas
             .with_texture_canvas(&mut texture, |canvas| {
@@ -317,12 +318,14 @@ impl Drawer {
 
                 let mut results = Vec::with_capacity((canvas_height * WORKERS_STEP) as usize);
 
-                for y in render_range {
-                    for x in 0..canvas_width {
-                        let primary_ray = Self::calc_primary_ray(eye, x as _, y as _);
+                for _ in 0..GUI_SAMPLE_STEP {
+                    for y in render_range.clone() {
+                        for x in 0..canvas_width {
+                            let primary_ray = Self::calc_primary_ray(eye, x as _, y as _);
 
-                        let result = scene.trace(primary_ray, 0);
-                        results.push((((y * canvas_height) + x), result));
+                            let result = scene.trace(primary_ray, 0);
+                            results.push((((y * canvas_height) + x), result));
+                        }
                     }
                 }
 
@@ -333,7 +336,7 @@ impl Drawer {
             }));
         }
 
-        self.samples += 1;
+        self.samples += GUI_SAMPLE_STEP;
 
         for handle in handles {
             handle.join().unwrap();
