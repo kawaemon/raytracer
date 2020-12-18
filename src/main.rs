@@ -64,10 +64,7 @@ fn main() -> Result<(), String> {
             Err(_) => SAMPLES,
         };
 
-        for count in 0..samples {
-            println!("sampling {}/{}", count, samples);
-            drawer.sample();
-        }
+        drawer.sample(samples);
 
         println!("writing into ./rendered.png");
 
@@ -124,11 +121,7 @@ fn main() -> Result<(), String> {
             }
         }
 
-        let time = Instant::now();
-        drawer.sample();
-        let elapsed = time.elapsed().as_millis();
-
-        println!("{} sample took {}ms", GUI_SAMPLE_STEP, elapsed);
+        drawer.sample(GUI_SAMPLE_STEP);
 
         canvas
             .with_texture_canvas(&mut texture, |canvas| {
@@ -289,7 +282,8 @@ impl Drawer {
         )
     }
 
-    fn sample(&mut self) {
+    fn sample(&mut self, samples: u32) {
+        let time = Instant::now();
         let current_height = Arc::new(Mutex::new(0));
         let mut handles = Vec::with_capacity(WORKERS);
 
@@ -318,7 +312,7 @@ impl Drawer {
 
                 let mut results = Vec::with_capacity((canvas_height * WORKERS_STEP) as usize);
 
-                for _ in 0..GUI_SAMPLE_STEP {
+                for _ in 0..samples {
                     for y in render_range.clone() {
                         for x in 0..canvas_width {
                             let primary_ray = Self::calc_primary_ray(eye, x as _, y as _);
@@ -341,6 +335,10 @@ impl Drawer {
         for handle in handles {
             handle.join().unwrap();
         }
+
+        let elapsed = time.elapsed().as_millis();
+
+        println!("{} sample took {}ms",samples, elapsed);
     }
 
     fn pixels<'a>(&'a self) -> Vec<Spectrum> {
