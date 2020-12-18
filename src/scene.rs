@@ -9,12 +9,12 @@ use rand::{rngs::OsRng, Rng};
 const RECURSION_LIMIT: u32 = 3000;
 const VACUUM_REFRACTIVE_INDEX: f64 = 1.0;
 
-pub struct Scene<'obj> {
-    objects: Vec<Box<dyn Intersectable + 'obj>>,
+pub struct Scene {
+    objects: Vec<Box<dyn Intersectable + 'static>>,
     lights: Vec<Light>,
 }
 
-impl<'obj> Scene<'obj> {
+impl Scene {
     pub fn new() -> Self {
         Self {
             objects: vec![],
@@ -22,7 +22,7 @@ impl<'obj> Scene<'obj> {
         }
     }
 
-    pub fn add_object(&mut self, o: impl Intersectable + 'obj) {
+    pub fn add_object(&mut self, o: impl Intersectable + 'static) {
         self.objects.push(Box::new(o));
     }
 

@@ -2,7 +2,7 @@ use crate::material::Material;
 use crate::ray::Ray;
 use crate::vector::Vector3;
 
-pub trait Intersectable {
+pub trait Intersectable: Send + Sync {
     fn intersect(&self, ray: &Ray) -> Option<Intersection>;
 }
 

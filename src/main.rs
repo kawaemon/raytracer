@@ -34,16 +34,18 @@ use sdl2::{
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use rand::Rng;
 use rand::rngs::OsRng;
-
+use rand::Rng;
 
 const WIDTH: u32 = 512;
 const HEIGHT: u32 = 512;
 const FPS: u64 = 1;
-const SAMPLES: u32 = 100;
+const SAMPLES: u32 = 500;
+const WORKERS: usize = 8;
+const WORKERS_STEP: u32 = 5;
 
 fn main() -> Result<(), String> {
     let mut drawer = Drawer::new(WIDTH, HEIGHT);
@@ -77,9 +79,9 @@ fn main() -> Result<(), String> {
         encoder.set_depth(png::BitDepth::Eight);
         let mut writer = encoder.write_header().unwrap();
 
-        let mut data = vec![];
+        let mut data = Vec::with_capacity((WIDTH * HEIGHT * 4) as usize);
 
-        for c in drawer.pixels().map(|x| x.to_color()) {
+        for c in drawer.pixels().iter().map(|x| x.to_color()) {
             data.push(c.r);
             data.push(c.g);
             data.push(c.b);
@@ -129,7 +131,7 @@ fn main() -> Result<(), String> {
 
         canvas
             .with_texture_canvas(&mut texture, |canvas| {
-                let mut iter = drawer.pixels();
+                let mut iter = drawer.pixels().into_iter();
                 for y in 0..HEIGHT {
                     for x in 0..WIDTH {
                         let color = iter.next().unwrap().to_color();
@@ -161,16 +163,16 @@ fn main() -> Result<(), String> {
     Ok(())
 }
 
-struct Drawer<'obj> {
-    scene: Scene<'obj>,
+struct Drawer {
+    scene: Arc<Scene>,
+    canvas: Arc<Mutex<Vec<Spectrum>>>,
     eye: Vector3,
     width: u32,
     height: u32,
     samples: u32,
-    canvas: Vec<Spectrum>,
 }
 
-impl Drawer<'_> {
+impl Drawer {
     fn new(width: u32, height: u32) -> Self {
         let mut scene = Scene::new();
 
@@ -247,7 +249,7 @@ impl Drawer<'_> {
         ));
 
         Self {
-            scene,
+            scene: Arc::new(scene),
             eye: Vector3 {
                 x: 0.0,
                 y: 0.0,
@@ -256,18 +258,18 @@ impl Drawer<'_> {
             width,
             height,
             samples: 0,
-            canvas: vec![
+            canvas: Arc::new(Mutex::new(vec![
                 Spectrum {
                     r: 0.0,
                     g: 0.0,
                     b: 0.0
                 };
                 (width * height) as usize
-            ],
+            ])),
         }
     }
 
-    fn calc_primary_ray(&self, x: f64, y: f64) -> Ray {
+    fn calc_primary_ray(eye: Vector3, x: f64, y: f64) -> Ray {
         let (width, height) = (WIDTH as f64, HEIGHT as f64);
         let image_plane = height;
 
@@ -276,7 +278,7 @@ impl Drawer<'_> {
         let dz = -image_plane;
 
         Ray::new(
-            self.eye,
+            eye,
             Vector3 {
                 x: dx,
                 y: dy,
@@ -287,22 +289,63 @@ impl Drawer<'_> {
     }
 
     fn sample(&mut self) {
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let index = (y * self.height) + x;
-                let primary_ray = self.calc_primary_ray(x as _, y as _);
+        let current_height = Arc::new(Mutex::new(0));
+        let mut handles = Vec::with_capacity(WORKERS);
 
-                self.canvas[index as usize] += self.scene.trace(primary_ray, 0);
-            }
+        for _ in 0..WORKERS {
+            let canvas_width = self.width;
+            let canvas_height = self.height;
+            let eye = self.eye;
+            let scene = Arc::clone(&self.scene);
+            let canvas = Arc::clone(&self.canvas);
+            let current_height = Arc::clone(&current_height);
+
+            handles.push(std::thread::spawn(move || loop {
+                let render_range = {
+                    let mut current_height = current_height.lock().unwrap();
+
+                    if *current_height > canvas_height {
+                        break;
+                    }
+
+                    let range =
+                        *current_height..(*current_height + WORKERS_STEP).min(canvas_height);
+                    *current_height += WORKERS_STEP;
+
+                    range
+                };
+
+                let mut results = Vec::with_capacity((canvas_height * WORKERS_STEP) as usize);
+
+                for y in render_range {
+                    for x in 0..canvas_width {
+                        let primary_ray = Self::calc_primary_ray(eye, x as _, y as _);
+
+                        let result = scene.trace(primary_ray, 0);
+                        results.push((((y * canvas_height) + x), result));
+                    }
+                }
+
+                let mut canvas_lock = canvas.lock().unwrap();
+                for (index, result) in results {
+                    canvas_lock[index as usize] += result;
+                }
+            }));
         }
 
         self.samples += 1;
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
     }
 
-    fn pixels<'a>(&'a self) -> impl Iterator<Item = Spectrum> + 'a {
-        let samples = self.samples;
+    fn pixels<'a>(&'a self) -> Vec<Spectrum> {
         self.canvas
+            .lock()
+            .unwrap()
             .iter()
-            .map(move |x| x.scale(1.0 / (samples as f64).max(1.0)))
+            .map(|x| x.scale(1.0 / (self.samples as f64).max(1.0)))
+            .collect()
     }
 }

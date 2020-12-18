@@ -7,7 +7,7 @@ use crate::vector::Vector3;
 pub struct TexturedObj<T, I>
 where
     T: Intersectable,
-    I: Fn(u32, u32) -> Spectrum,
+    I: (Fn(u32, u32) -> Spectrum) + Send + Sync,
 {
     pub object: T,
     pub image: I,
@@ -22,7 +22,7 @@ where
 impl<T, I> Intersectable for TexturedObj<T, I>
 where
     T: Intersectable,
-    I: Fn(u32, u32) -> Spectrum,
+    I: (Fn(u32, u32) -> Spectrum) + Send + Sync,
 {
     fn intersect(&self, ray: &Ray) -> Option<Intersection> {
         let intersection = self.object.intersect(ray);
