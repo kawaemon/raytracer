@@ -4,7 +4,6 @@ use crate::material::Material;
 use crate::ray::Ray;
 use crate::spectrum::{self, Spectrum};
 use crate::vector::Vector3;
-use rand::{rngs::OsRng, Rng};
 
 const RECURSION_LIMIT: u32 = 3000;
 const VACUUM_REFRACTIVE_INDEX: f64 = 1.0;
@@ -47,9 +46,7 @@ impl Scene {
             }
         };
 
-        let reflection_ray = intersection
-            .normal
-            .random_hemisphere(|| OsRng.gen_range(-1.0, 1.0));
+        let reflection_ray = intersection.normal.random_hemisphere();
         let mut light = self.trace(Ray::new(intersection.point, reflection_ray), depth + 1);
 
         let fr = intersection

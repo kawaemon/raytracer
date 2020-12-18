@@ -10,26 +10,21 @@ mod sphere;
 mod textured_obj;
 mod vector;
 
-use checked_obj::CheckedObject;
-use light::Light;
 use material::Material;
 use plane::Plane;
 use ray::Ray;
 use scene::Scene;
-use spectrum::Color;
 use spectrum::Spectrum;
 use sphere::Sphere;
-use textured_obj::TexturedObj;
 use vector::Vector3;
 
-use sdl2::{
-    event::Event,
-    keyboard::Keycode,
-    pixels::{Color as SDLColor, PixelFormatEnum},
-    rect::{Point, Rect},
-    render::Canvas,
-    video::Window,
-};
+use sdl2::event::Event;
+use sdl2::keyboard::Keycode;
+use sdl2::pixels::{Color as SDLColor, PixelFormatEnum};
+use sdl2::rect::{Point, Rect};
+
+use rand::rngs::SmallRng;
+use rand::{Rng, SeedableRng};
 
 use std::fs::File;
 use std::io::BufWriter;
@@ -37,16 +32,22 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-use rand::rngs::OsRng;
-use rand::Rng;
-
 const WIDTH: u32 = 512;
 const HEIGHT: u32 = 512;
 const FPS: u64 = 1;
-const GUI_SAMPLE_STEP: u32 = 10;
 const SAMPLES: u32 = 500;
 const WORKERS: usize = 8;
-const WORKERS_STEP: u32 = 5;
+const GUI_SAMPLE_STEP: u32 = 1;
+const WORKERS_STEP: u32 = 4;
+
+#[inline(always)]
+fn random(low: f64, high: f64) -> f64 {
+    let mut thread_rng = rand::thread_rng();
+
+    SmallRng::from_rng(&mut thread_rng)
+        .unwrap()
+        .gen_range(low, high)
+}
 
 fn main() -> Result<(), String> {
     let mut drawer = Drawer::new(WIDTH, HEIGHT);
@@ -70,7 +71,7 @@ fn main() -> Result<(), String> {
 
         let path = Path::new("./rendered.png");
         let file = File::create(path).unwrap();
-        let mut writer = BufWriter::new(file);
+        let writer = BufWriter::new(file);
 
         let mut encoder = png::Encoder::new(writer, WIDTH, HEIGHT);
         encoder.set_color(png::ColorType::RGBA);
@@ -95,7 +96,7 @@ fn main() -> Result<(), String> {
     let video = sdl.video()?;
 
     let window = video
-        .window("raytracing", WIDTH, HEIGHT)
+        .window("raytracer", WIDTH, HEIGHT)
         .position_centered()
         .opengl()
         .build()
@@ -267,8 +268,8 @@ impl Drawer {
         let (width, height) = (WIDTH as f64, HEIGHT as f64);
         let image_plane = height;
 
-        let dx = x + OsRng.gen_range(0.0, 1.0) - width / 2.0;
-        let dy = -(y + OsRng.gen_range(0.0, 1.0) - height / 2.0);
+        let dx = x + random(0.0, 1.0) - width / 2.0;
+        let dy = -(y + random(0.0, 1.0) - height / 2.0);
         let dz = -image_plane;
 
         Ray::new(

@@ -8,5 +8,5 @@ edition = "2018"
 
 [dependencies]
 png = "0.16.7"
-rand = "0.7.3"
+rand = { version = "0.7.3", features = ["small_rng"] }
 sdl2 = "0.34.3"

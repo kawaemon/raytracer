@@ -1,3 +1,4 @@
+use crate::random;
 use std::clone::Clone;
 use std::marker::Copy;
 use std::ops::{Add, AddAssign, Neg, Sub};
@@ -91,20 +92,12 @@ impl Vector3 {
         self.reflect(&normal)
     }
 
-    /// rng must produce numbers which is in -1.0..1.0
-    pub fn random_hemisphere(&self, mut rng: impl FnMut() -> f64) -> Self {
-        #[cfg(debug_assertions)]
-        let mut rng = || {
-            let value = rng();
-            debug_assert!((-1.0..=1.0).contains(&value));
-            value
-        };
-
+    pub fn random_hemisphere(&self) -> Self {
         loop {
             let mut dir = Vector3 {
-                x: rng(),
-                y: rng(),
-                z: rng(),
+                x: random(-1.0, 1.0),
+                y: random(-1.0, 1.0),
+                z: random(-1.0, 1.0),
             };
 
             if dir.len() < 1.0 {
