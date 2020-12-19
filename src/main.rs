@@ -34,7 +34,7 @@ use std::time::Instant;
 
 const WIDTH: u32 = 512;
 const HEIGHT: u32 = 512;
-const FPS: u64 = 1;
+const FPS: u64 = 30;
 const SAMPLES: u32 = 500;
 const WORKERS: usize = 8;
 const GUI_SAMPLE_STEP: u32 = 1;
@@ -132,7 +132,7 @@ fn main() -> Result<(), String> {
                         let color = iter.next().unwrap().to_color();
 
                         canvas.set_draw_color(SDLColor::RGB(color.r, color.g, color.b));
-                        canvas.draw_point(Point::new(x as _, y as _));
+                        canvas.draw_point(Point::new(x as _, y as _)).unwrap();
                     }
                 }
             })
@@ -264,71 +264,23 @@ impl Drawer {
         }
     }
 
-    fn calc_primary_ray(eye: Vector3, x: f64, y: f64) -> Ray {
-        let (width, height) = (WIDTH as f64, HEIGHT as f64);
-        let image_plane = height;
-
-        let dx = x + random(0.0, 1.0) - width / 2.0;
-        let dy = -(y + random(0.0, 1.0) - height / 2.0);
-        let dz = -image_plane;
-
-        Ray::new(
-            eye,
-            Vector3 {
-                x: dx,
-                y: dy,
-                z: dz,
-            }
-            .normalize(),
-        )
-    }
-
     fn sample(&mut self, samples: u32) {
         let time = Instant::now();
         let current_height = Arc::new(Mutex::new(0));
         let mut handles = Vec::with_capacity(WORKERS);
 
+        let worker = Worker {
+            canvas_width: self.width,
+            canvas_height: self.height,
+            eye: self.eye,
+            scene: Arc::clone(&self.scene),
+            canvas: Arc::clone(&self.canvas),
+            current_height: Arc::clone(&current_height),
+        };
+
         for _ in 0..WORKERS {
-            let canvas_width = self.width;
-            let canvas_height = self.height;
-            let eye = self.eye;
-            let scene = Arc::clone(&self.scene);
-            let canvas = Arc::clone(&self.canvas);
-            let current_height = Arc::clone(&current_height);
-
-            handles.push(std::thread::spawn(move || loop {
-                let render_range = {
-                    let mut current_height = current_height.lock().unwrap();
-
-                    if *current_height > canvas_height {
-                        break;
-                    }
-
-                    let range =
-                        *current_height..(*current_height + WORKERS_STEP).min(canvas_height);
-                    *current_height += WORKERS_STEP;
-
-                    range
-                };
-
-                let mut results = Vec::with_capacity((canvas_height * WORKERS_STEP) as usize);
-
-                for _ in 0..samples {
-                    for y in render_range.clone() {
-                        for x in 0..canvas_width {
-                            let primary_ray = Self::calc_primary_ray(eye, x as _, y as _);
-
-                            let result = scene.trace(primary_ray, 0);
-                            results.push((((y * canvas_height) + x), result));
-                        }
-                    }
-                }
-
-                let mut canvas_lock = canvas.lock().unwrap();
-                for (index, result) in results {
-                    canvas_lock[index as usize] += result;
-                }
-            }));
+            let worker = worker.clone();
+            handles.push(std::thread::spawn(move || worker.run(samples)))
         }
 
         for handle in handles {
@@ -349,5 +301,72 @@ impl Drawer {
             .iter()
             .map(|x| x.scale(1.0 / (self.samples as f64).max(1.0)))
             .collect()
+    }
+}
+
+#[derive(Clone)]
+struct Worker {
+    canvas_width: u32,
+    canvas_height: u32,
+    eye: Vector3,
+    scene: Arc<Scene>,
+    canvas: Arc<Mutex<Vec<Spectrum>>>,
+    current_height: Arc<Mutex<u32>>,
+}
+
+impl Worker {
+    fn calc_primary_ray(eye: Vector3, x: f64, y: f64) -> Ray {
+        let (width, height) = (WIDTH as f64, HEIGHT as f64);
+        let image_plane = height;
+
+        let dx = x + random(0.0, 1.0) - width / 2.0;
+        let dy = -(y + random(0.0, 1.0) - height / 2.0);
+        let dz = -image_plane;
+
+        Ray::new(
+            eye,
+            Vector3 {
+                x: dx,
+                y: dy,
+                z: dz,
+            }
+            .normalize(),
+        )
+    }
+
+    fn run(&self, samples: u32) {
+        loop {
+            let render_range = {
+                let mut current_height = self.current_height.lock().unwrap();
+
+                if *current_height > self.canvas_height {
+                    break;
+                }
+
+                let range =
+                    *current_height..(*current_height + WORKERS_STEP).min(self.canvas_height);
+                *current_height += WORKERS_STEP;
+
+                range
+            };
+
+            let mut results = Vec::with_capacity((self.canvas_height * WORKERS_STEP) as usize);
+
+            for _ in 0..samples {
+                for y in render_range.clone() {
+                    for x in 0..self.canvas_width {
+                        let primary_ray = Self::calc_primary_ray(self.eye, x as _, y as _);
+
+                        let result = self.scene.trace(primary_ray, 0);
+                        results.push((((y * self.canvas_height) + x), result));
+                    }
+                }
+            }
+
+            let mut canvas_lock = self.canvas.lock().unwrap();
+            for (index, result) in results {
+                canvas_lock[index as usize] += result;
+            }
+        }
     }
 }
