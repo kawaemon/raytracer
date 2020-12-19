@@ -92,6 +92,14 @@ impl Vector3 {
         self.reflect(&normal)
     }
 
+    pub fn cross(&self, v: Self) -> Self {
+        Vector3 {
+            x: self.y * v.z - v.y * self.z,
+            y: self.z * v.x - v.z * self.x,
+            z: self.x * v.y - v.x * self.y,
+        }
+    }
+
     pub fn random_hemisphere(&self) -> Self {
         loop {
             let mut dir = Vector3 {

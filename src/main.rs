@@ -1,3 +1,4 @@
+mod camera;
 mod checked_obj;
 mod intersect;
 mod light;
@@ -24,8 +25,10 @@ use sdl2::pixels::{Color as SDLColor, PixelFormatEnum};
 use sdl2::rect::{Point, Rect};
 
 use rand::rngs::SmallRng;
+use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
+use crate::camera::Camera;
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
@@ -34,17 +37,17 @@ use std::time::Instant;
 
 const WIDTH: u32 = 512;
 const HEIGHT: u32 = 512;
-const FPS: u64 = 30;
+const FPS: u64 = 60;
 const SAMPLES: u32 = 500;
 const WORKERS: usize = 8;
-const GUI_SAMPLE_STEP: u32 = 1;
+const GUI_SAMPLE_STEP: u32 = 10;
 const WORKERS_STEP: u32 = 4;
 
 #[inline(always)]
 fn random(low: f64, high: f64) -> f64 {
     let mut thread_rng = rand::thread_rng();
 
-    SmallRng::from_rng(&mut thread_rng)
+    Sma::from_rng(&mut thread_rng)
         .unwrap()
         .gen_range(low, high)
 }
@@ -161,7 +164,7 @@ fn main() -> Result<(), String> {
 struct Drawer {
     scene: Arc<Scene>,
     canvas: Arc<Mutex<Vec<Spectrum>>>,
-    eye: Vector3,
+    camera: Camera,
     width: u32,
     height: u32,
     samples: u32,
@@ -243,13 +246,31 @@ impl Drawer {
             },
         ));
 
-        Self {
-            scene: Arc::new(scene),
-            eye: Vector3 {
+        let mut camera = Camera::default();
+        camera.look_at(
+            Vector3 {
+                x: 4.0,
+                y: 1.5,
+                z: 6.0,
+            },
+            Vector3 {
                 x: 0.0,
                 y: 0.0,
-                z: 7.0,
+                z: 0.0,
             },
+            Vector3 {
+                x: 0.0,
+                y: 1.0,
+                z: 0.0,
+            },
+            40.0 * std::f64::consts::PI / 180.0,
+            width,
+            height,
+        );
+
+        Self {
+            scene: Arc::new(scene),
+            camera,
             width,
             height,
             samples: 0,
@@ -272,7 +293,7 @@ impl Drawer {
         let worker = Worker {
             canvas_width: self.width,
             canvas_height: self.height,
-            eye: self.eye,
+            camera: self.camera.clone(),
             scene: Arc::clone(&self.scene),
             canvas: Arc::clone(&self.canvas),
             current_height: Arc::clone(&current_height),
@@ -294,7 +315,7 @@ impl Drawer {
         println!("{} sample took {}ms", samples, elapsed);
     }
 
-    fn pixels<'a>(&'a self) -> Vec<Spectrum> {
+    fn pixels(&self) -> Vec<Spectrum> {
         self.canvas
             .lock()
             .unwrap()
@@ -308,30 +329,16 @@ impl Drawer {
 struct Worker {
     canvas_width: u32,
     canvas_height: u32,
-    eye: Vector3,
+    camera: Camera,
     scene: Arc<Scene>,
     canvas: Arc<Mutex<Vec<Spectrum>>>,
     current_height: Arc<Mutex<u32>>,
 }
 
 impl Worker {
-    fn calc_primary_ray(eye: Vector3, x: f64, y: f64) -> Ray {
-        let (width, height) = (WIDTH as f64, HEIGHT as f64);
-        let image_plane = height;
-
-        let dx = x + random(0.0, 1.0) - width / 2.0;
-        let dy = -(y + random(0.0, 1.0) - height / 2.0);
-        let dz = -image_plane;
-
-        Ray::new(
-            eye,
-            Vector3 {
-                x: dx,
-                y: dy,
-                z: dz,
-            }
-            .normalize(),
-        )
+    fn calc_primary_ray(&self, x: f64, y: f64) -> Ray {
+        self.camera
+            .ray(x + random(-0.5, 0.5), y + random(-0.5, 0.5))
     }
 
     fn run(&self, samples: u32) {
@@ -355,7 +362,7 @@ impl Worker {
             for _ in 0..samples {
                 for y in render_range.clone() {
                     for x in 0..self.canvas_width {
-                        let primary_ray = Self::calc_primary_ray(self.eye, x as _, y as _);
+                        let primary_ray = self.calc_primary_ray(x as _, y as _);
 
                         let result = self.scene.trace(primary_ray, 0);
                         results.push((((y * self.canvas_height) + x), result));
