@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod camera;
 mod checked_obj;
 mod intersect;
@@ -25,7 +27,6 @@ use sdl2::pixels::{Color as SDLColor, PixelFormatEnum};
 use sdl2::rect::{Point, Rect};
 
 use rand::rngs::SmallRng;
-use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
 use crate::camera::Camera;
@@ -47,9 +48,7 @@ const WORKERS_STEP: u32 = 4;
 fn random(low: f64, high: f64) -> f64 {
     let mut thread_rng = rand::thread_rng();
 
-    Sma::from_rng(&mut thread_rng)
-        .unwrap()
-        .gen_range(low, high)
+    SmallRng::from_rng(&mut thread_rng).unwrap().gen_range(low, high)
 }
 
 fn main() -> Result<(), String> {

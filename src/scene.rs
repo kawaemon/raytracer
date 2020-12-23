@@ -47,7 +47,7 @@ impl Scene {
         };
 
         let reflection_ray = intersection.normal.random_hemisphere();
-        let mut light = self.trace(Ray::new(intersection.point, reflection_ray), depth + 1);
+        let light = self.trace(Ray::new(intersection.point, reflection_ray), depth + 1);
 
         let fr = intersection
             .material
