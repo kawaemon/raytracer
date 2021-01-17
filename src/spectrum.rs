@@ -1,5 +1,7 @@
 use std::ops::{Add, AddAssign, Mul};
 
+const DISPLAY_GAMMA: f64 = 2.2;
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Color {
     pub r: u8,
@@ -31,10 +33,12 @@ impl Spectrum {
     }
 
     pub fn to_color(&self) -> Color {
+        let convert = |x: f64| x.powf(1.0 / DISPLAY_GAMMA).mul(255.).min(255.) as u8;
+
         Color {
-            r: (self.r * 255.0).min(255.0) as u8,
-            g: (self.g * 255.0).min(255.0) as u8,
-            b: (self.b * 255.0).min(255.0) as u8,
+            r: convert(self.r),
+            g: convert(self.g),
+            b: convert(self.b),
         }
     }
 }
