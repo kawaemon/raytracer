@@ -1,7 +1,7 @@
 use crate::ray::Ray;
 use crate::vector::Vector3;
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Copy)]
 pub struct Camera {
     eye: Vector3,
     origin: Vector3,

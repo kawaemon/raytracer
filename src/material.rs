@@ -1,11 +1,12 @@
-use crate::spectrum::Spectrum;
+use crate::spectrum::{Spectrum, BLACK};
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Material {
     pub diffuse: Spectrum,
     pub reflective: f64,
     pub refractive: f64,
     pub refractive_index: f64,
+    pub emissive: Spectrum,
 }
 
 impl Default for Material {
@@ -15,6 +16,7 @@ impl Default for Material {
             reflective: 0.0,
             refractive: 0.0,
             refractive_index: 1.0,
+            emissive: BLACK,
         }
     }
 }

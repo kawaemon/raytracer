@@ -13,6 +13,7 @@ mod sphere;
 mod textured_obj;
 mod vector;
 
+use checked_obj::CheckedObject;
 use material::Material;
 use plane::Plane;
 use ray::Ray;
@@ -41,14 +42,16 @@ const HEIGHT: u32 = 512;
 const FPS: u64 = 60;
 const SAMPLES: u32 = 500;
 const WORKERS: usize = 8;
-const GUI_SAMPLE_STEP: u32 = 10;
+const GUI_SAMPLE_STEP: u32 = 50;
 const WORKERS_STEP: u32 = 4;
 
 #[inline(always)]
 fn random(low: f64, high: f64) -> f64 {
     let mut thread_rng = rand::thread_rng();
 
-    SmallRng::from_rng(&mut thread_rng).unwrap().gen_range(low, high)
+    SmallRng::from_rng(&mut thread_rng)
+        .unwrap()
+        .gen_range(low, high)
 }
 
 fn main() -> Result<(), String> {
@@ -173,6 +176,12 @@ impl Drawer {
     fn new(width: u32, height: u32) -> Self {
         let mut scene = Scene::new();
 
+        scene.set_sky_color(Spectrum {
+            r: 0.1,
+            g: 0.1,
+            b: 0.1,
+        });
+
         scene.add_object(Sphere {
             center: Vector3 {
                 x: -2.2,
@@ -203,6 +212,7 @@ impl Drawer {
                     g: 0.7,
                     b: 0.3,
                 },
+                reflective: 0.8,
                 ..Material::default()
             },
         });
@@ -220,37 +230,72 @@ impl Drawer {
                     g: 0.9,
                     b: 0.7,
                 },
+                refractive: 0.8,
+                refractive_index: 1.5,
                 ..Material::default()
             },
         });
 
-        scene.add_object(Plane::new(
-            Vector3 {
+        scene.add_object(Sphere {
+            center: Vector3 {
                 x: 0.0,
-                y: -1.0,
+                y: 4.0,
                 z: 0.0,
             },
-            Vector3 {
-                x: 0.0,
-                y: 1.0,
-                z: 0.0,
-            },
-            Material {
+            radius: 1.0,
+            material: Material {
                 diffuse: Spectrum {
-                    r: 0.9,
-                    g: 0.9,
-                    b: 0.9,
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                },
+                emissive: Spectrum {
+                    r: 30.0,
+                    g: 20.0,
+                    b: 10.0,
                 },
                 ..Material::default()
             },
-        ));
+        });
+
+        scene.add_object(CheckedObject {
+            object: Plane::new(
+                Vector3 {
+                    x: 0.0,
+                    y: -1.0,
+                    z: 0.0,
+                },
+                Vector3 {
+                    x: 0.0,
+                    y: 1.0,
+                    z: 0.0,
+                },
+                Material {
+                    diffuse: Spectrum {
+                        r: 0.9,
+                        g: 0.9,
+                        b: 0.9,
+                    },
+                    ..Material::default()
+                },
+            ),
+            grid_width: 1.0,
+            alt_material: Material {
+                diffuse: Spectrum {
+                    r: 0.4,
+                    g: 0.4,
+                    b: 0.4,
+                },
+                ..Material::default()
+            },
+        });
 
         let mut camera = Camera::default();
         camera.look_at(
             Vector3 {
-                x: 4.0,
-                y: 1.5,
-                z: 6.0,
+                x: 0.0,
+                y: 0.0,
+                z: 9.0,
             },
             Vector3 {
                 x: 0.0,
@@ -298,9 +343,15 @@ impl Drawer {
             current_height: Arc::clone(&current_height),
         };
 
-        for _ in 0..WORKERS {
+        for i in 0..WORKERS {
             let worker = worker.clone();
-            handles.push(std::thread::spawn(move || worker.run(samples)))
+            let handle = std::thread::Builder::new()
+                .name(format!("Render worker {}", i + 1))
+                .stack_size(64 * 1024 * 1024)
+                .spawn(move || worker.run(samples))
+                .unwrap();
+
+            handles.push(handle);
         }
 
         for handle in handles {

@@ -1,23 +1,23 @@
 use crate::intersect::{Intersectable, Intersection};
-use crate::light::Light;
 use crate::material::Material;
+use crate::random;
 use crate::ray::Ray;
-use crate::spectrum::{self, Spectrum};
+use crate::spectrum::{self, Spectrum, BLACK};
 use crate::vector::Vector3;
 
-const RECURSION_LIMIT: u32 = 3000;
+const RECURSION_LIMIT: u32 = 10000;
 const VACUUM_REFRACTIVE_INDEX: f64 = 1.0;
 
 pub struct Scene {
     objects: Vec<Box<dyn Intersectable + 'static>>,
-    lights: Vec<Light>,
+    sky_color: Spectrum,
 }
 
 impl Scene {
     pub fn new() -> Self {
         Self {
             objects: vec![],
-            lights: vec![],
+            sky_color: BLACK,
         }
     }
 
@@ -25,37 +25,74 @@ impl Scene {
         self.objects.push(Box::new(o));
     }
 
-    pub fn add_light(&mut self, l: Light) {
-        self.lights.push(l);
+    pub fn set_sky_color(&mut self, c: Spectrum) {
+        self.sky_color = c;
+    }
+
+    fn interact_surface(
+        &self,
+        ray_dir: Vector3,
+        point: Vector3,
+        normal: Vector3,
+        material: Material,
+        eta: f64,
+        depth: u32,
+    ) -> Spectrum {
+        let ks = material.reflective;
+        let kt = material.refractive;
+
+        let t = random(0.0, 1.0);
+
+        if t < ks {
+            // 鏡面反射
+            let r = ray_dir.reflect(&normal);
+            self.trace(Ray::new(point, r), depth + 1) * material.diffuse
+        } else if t < ks + kt {
+            // 屈折
+            let r = ray_dir.refract(normal, eta);
+            self.trace(Ray::new(point, r), depth + 1) * material.diffuse
+        } else {
+            let r = normal.random_hemisphere();
+            let li = self.trace(Ray::new(point, r), depth + 1);
+
+            let fr = material.diffuse.scale(1.0 / std::f64::consts::PI);
+            let factor = 2.0 * std::f64::consts::PI * normal.dot(&r);
+            (li * fr).scale(factor)
+        }
     }
 
     pub fn trace(&self, ray: Ray, depth: u32) -> Spectrum {
         if RECURSION_LIMIT < depth {
-            println!("reached to recursion limit");
             return spectrum::BLACK;
         }
 
         let intersection = match self.find_nearest_intersection(&ray) {
             Some(i) => i,
-            None => {
-                return Spectrum {
-                    r: 1.0,
-                    g: 1.0,
-                    b: 1.0,
-                }
-            }
+            None => return self.sky_color,
         };
 
-        let reflection_ray = intersection.normal.random_hemisphere();
-        let light = self.trace(Ray::new(intersection.point, reflection_ray), depth + 1);
+        let m = intersection.material;
+        let dot = intersection.normal.dot(&ray.dir);
 
-        let fr = intersection
-            .material
-            .diffuse
-            .scale(1.0 / std::f64::consts::PI);
-        let factor = 2.0 * std::f64::consts::PI * intersection.normal.dot(&reflection_ray);
-
-        (light * fr).scale(factor)
+        if dot < 0.0 {
+            self.interact_surface(
+                ray.dir,
+                intersection.point,
+                intersection.normal,
+                m,
+                VACUUM_REFRACTIVE_INDEX / m.refractive_index,
+                depth,
+            ) + m.emissive.scale(-dot)
+        } else {
+            self.interact_surface(
+                ray.dir,
+                intersection.point,
+                -intersection.normal,
+                m,
+                m.refractive_index / VACUUM_REFRACTIVE_INDEX,
+                depth,
+            )
+        }
     }
 
     fn find_nearest_intersection(&self, ray: &Ray) -> Option<Intersection> {
@@ -97,12 +134,5 @@ impl Scene {
         }
 
         spectrum::BLACK
-    }
-
-    fn lighting(&self, point: Vector3, normal: Vector3, material: Material) -> Spectrum {
-        self.lights
-            .iter()
-            .map(|x| self.diffuse_lighting(point, normal, material.diffuse, x.pos, x.power))
-            .fold(spectrum::BLACK, |a, b| a + b)
     }
 }
