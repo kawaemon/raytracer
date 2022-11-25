@@ -31,6 +31,7 @@ use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
 
 use crate::camera::Camera;
+use std::cell::RefCell;
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
@@ -45,17 +46,22 @@ const WORKERS: usize = 8;
 const GUI_SAMPLE_STEP: u32 = 50;
 const WORKERS_STEP: u32 = 4;
 
+use once_cell::unsync::Lazy;
+
 #[inline(always)]
 fn random(low: f64, high: f64) -> f64 {
-    let mut thread_rng = rand::thread_rng();
+    thread_local! {
+        static RNG: Lazy<RefCell<SmallRng>> = Lazy::new(||{
+            let mut thread_rng = rand::thread_rng();
+            RefCell::new(SmallRng::from_rng(&mut thread_rng).unwrap())
+        })
+    }
 
-    SmallRng::from_rng(&mut thread_rng)
-        .unwrap()
-        .gen_range(low, high)
+    RNG.with(|r| r.borrow_mut().gen_range(low, high))
 }
 
 fn main() -> Result<(), String> {
-    let mut drawer = Drawer::new(WIDTH, HEIGHT);
+    let drawer = Arc::new(Drawer::new(WIDTH, HEIGHT));
 
     let headless = std::env::var("RAYTRACER_HEADLESS").is_ok();
 
@@ -115,6 +121,13 @@ fn main() -> Result<(), String> {
 
     let mut event_pump = sdl.event_pump()?;
 
+    {
+        let drawer = Arc::clone(&drawer);
+        std::thread::spawn(move || loop {
+            drawer.sample(GUI_SAMPLE_STEP);
+        });
+    }
+
     'running: loop {
         for event in event_pump.poll_iter() {
             match event {
@@ -126,8 +139,6 @@ fn main() -> Result<(), String> {
                 _ => {}
             }
         }
-
-        drawer.sample(GUI_SAMPLE_STEP);
 
         canvas
             .with_texture_canvas(&mut texture, |canvas| {
@@ -169,7 +180,7 @@ struct Drawer {
     camera: Camera,
     width: u32,
     height: u32,
-    samples: u32,
+    samples: Mutex<u32>,
 }
 
 impl Drawer {
@@ -317,7 +328,6 @@ impl Drawer {
             camera,
             width,
             height,
-            samples: 0,
             canvas: Arc::new(Mutex::new(vec![
                 Spectrum {
                     r: 0.0,
@@ -326,10 +336,11 @@ impl Drawer {
                 };
                 (width * height) as usize
             ])),
+            samples: Mutex::new(0),
         }
     }
 
-    fn sample(&mut self, samples: u32) {
+    fn sample(&self, samples: u32) {
         let time = Instant::now();
         let current_height = Arc::new(Mutex::new(0));
         let mut handles = Vec::with_capacity(WORKERS);
@@ -337,11 +348,16 @@ impl Drawer {
         let worker = Worker {
             canvas_width: self.width,
             canvas_height: self.height,
-            camera: self.camera.clone(),
+            camera: self.camera,
             scene: Arc::clone(&self.scene),
             canvas: Arc::clone(&self.canvas),
             current_height: Arc::clone(&current_height),
         };
+
+        {
+            let mut samples_sum = self.samples.lock().unwrap();
+            *samples_sum += samples;
+        }
 
         for i in 0..WORKERS {
             let worker = worker.clone();
@@ -360,8 +376,6 @@ impl Drawer {
 
         let elapsed = time.elapsed().as_millis();
 
-        self.samples += samples;
-
         println!("{} sample took {}ms", samples, elapsed);
     }
 
@@ -370,7 +384,7 @@ impl Drawer {
             .lock()
             .unwrap()
             .iter()
-            .map(|x| x.scale(1.0 / (self.samples as f64).max(1.0)))
+            .map(|x| x.scale(1.0 / (*self.samples.lock().unwrap() as f64).max(1.0)))
             .collect()
     }
 }
